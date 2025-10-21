@@ -4,14 +4,13 @@ import {
   useContext,
   useReducer,
 } from "react";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "./AuthContext"; // Pastikan path ini benar
 
 export const ChatContext = createContext();
 
 export const ChatContextProvider = ({ children }) => {
   const { currentUser } = useAuth();
   
-  // State awal: belum ada chat yang dipilih
   const INITIAL_STATE = {
     chatId: null,
     user: {}, // Info user yang sedang kita ajak chat
@@ -20,10 +19,8 @@ export const ChatContextProvider = ({ children }) => {
   const chatReducer = (state, action) => {
     switch (action.type) {
       case "CHANGE_USER":
-        // Saat memilih user dari sidebar, kita siapkan state-nya
         return {
           user: action.payload,
-          // Buat ID chat yang unik & konsisten
           chatId:
             currentUser.uid > action.payload.uid
               ? currentUser.uid + action.payload.uid
