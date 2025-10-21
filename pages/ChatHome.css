@@ -172,3 +172,125 @@
   flex: 1;
   margin-right: 12px;
 }
+
+/* src/pages/ChatHome.css (TAMBAHAN) */
+
+/* === Search === */
+.search-container {
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px;
+}
+
+.search-form {
+  display: flex;
+}
+
+.search-form input {
+  background: var(--border-color);
+  border: none;
+  font-size: 0.9rem;
+  padding: 10px;
+  width: 100%;
+}
+.search-form input:focus {
+  background: white;
+}
+
+.search-form button {
+  background: var(--border-color);
+  color: var(--text-secondary);
+  padding: 0 12px;
+  border-radius: 0 8px 8px 0;
+}
+.search-form button:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+.search-error {
+  display: block;
+  padding: 8px;
+  color: #e53e3e;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.search-result {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  border-radius: 8px;
+  margin-top: 5px;
+}
+.search-result:hover {
+  background-color: #e6fffa;
+}
+/* Placeholder untuk foto profil, bisa diaktifkan nanti
+.search-result img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+*/
+
+/* === ChatList (Modifikasi chat-item) === */
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.no-chats {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.chat-item {
+  display: flex; /* Ganti dari default */
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px; /* Sesuaikan padding */
+}
+
+/* Placeholder foto profil */
+/*
+.chat-item img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+*/
+
+.chat-info {
+  width: 100%;
+  overflow: hidden;
+}
+
+.chat-last-msg {
+  display: block; /* Pastikan ini block */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.85rem; /* Sedikit lebih kecil */
+}
+
+/* === Chat Window Placeholder === */
+.chat-window.placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background-color: var(--bg-color);
+}
+.placeholder-content {
+  color: var(--text-secondary);
+}
+.placeholder-content h2 {
+  color: var(--primary-dark);
+  margin: 16px 0 8px;
+}
