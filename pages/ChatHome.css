@@ -1,0 +1,174 @@
+/* src/pages/ChatHome.css */
+.chat-home-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+  max-width: 1200px; /* Batasi lebar di layar besar */
+  margin: auto;
+  border-radius: 12px; /* Tampilan modern */
+  overflow: hidden; /* Penting untuk border-radius */
+}
+
+/* === SIDEBAR === */
+.sidebar {
+  width: 300px;
+  background: var(--bg-color); /* Sedikit beda dari chat */
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h3 {
+  color: var(--primary-dark);
+}
+
+.user-profile {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+
+.user-profile span {
+  font-weight: 600;
+}
+
+.logout-btn {
+  background: #fef2f2; /* Merah muda */
+  color: #e53e3e; /* Merah */
+  padding: 6px 10px;
+  font-size: 0.8rem;
+}
+.logout-btn:hover {
+  background: #e53e3e;
+  color: white;
+}
+
+.chat-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.chat-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.chat-item:hover {
+  background-color: #f0f4f8;
+}
+.chat-item.active {
+  background-color: #e6fffa; /* Mint sangat muda */
+  border-right: 3px solid var(--primary-color);
+}
+
+.chat-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.chat-last-msg {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* === CHAT WINDOW === */
+.chat-window {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--card-bg);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  z-index: 10;
+}
+
+/* === DAFTAR PESAN === */
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.message-bubble {
+  max-width: 70%;
+  padding: 12px 16px;
+  border-radius: 18px;
+}
+
+.message-sender {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--primary-color);
+}
+
+.message-text {
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.message-time {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: right;
+  margin-top: 4px;
+  display: block;
+}
+
+/* Pesan Terkirim (Sent) */
+.message.sent {
+  justify-content: flex-end; /* Ratakan ke kanan */
+}
+.message.sent .message-bubble {
+  background-color: var(--primary-color); /* Warna Aksen Mint */
+  color: white;
+  border-top-right-radius: 4px;
+}
+.message.sent .message-time {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Pesan Diterima (Received) */
+.message.received {
+  justify-content: flex-start; /* Ratakan ke kiri */
+}
+.message.received .message-bubble {
+  background-color: #edf2f7; /* Abu-abu muda */
+  color: var(--text-primary);
+  border-top-left-radius: 4px;
+}
+
+/* === FORM KIRIM PESAN === */
+.send-form {
+  display: flex;
+  padding: 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-color);
+}
+
+.send-form input {
+  flex: 1;
+  margin-right: 12px;
+}
