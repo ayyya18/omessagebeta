@@ -13,19 +13,34 @@ export const ChatContextProvider = ({ children }) => {
   
   const INITIAL_STATE = {
     chatId: null,
-    user: {}, // Info user yang sedang kita ajak chat
+    user: {}, // Info user ATAU grup
+    isGroup: false, // Flag baru
   };
 
   const chatReducer = (state, action) => {
     switch (action.type) {
       case "CHANGE_USER":
-        return {
-          user: action.payload,
-          chatId:
-            currentUser.uid > action.payload.uid
-              ? currentUser.uid + action.payload.uid
-              : action.payload.uid + currentUser.uid,
-        };
+        const payload = action.payload;
+        
+        // Cek apakah ini grup
+        if (payload.isGroup) {
+          return {
+            user: payload.userInfo, // userInfo berisi info grup
+            chatId: payload.userInfo.uid, // uid adalah ID grup
+            isGroup: true,
+          };
+        } else {
+          // Logika untuk chat 1-on-1 (tetap sama)
+          return {
+            user: payload, // payload adalah info user
+            chatId:
+              currentUser.uid > payload.uid
+                ? currentUser.uid + payload.uid
+                : payload.uid + currentUser.uid,
+            isGroup: false,
+          };
+        }
+      
       case "RESET":
         return INITIAL_STATE;
       default:

@@ -294,3 +294,375 @@
   color: var(--primary-dark);
   margin: 16px 0 8px;
 }
+
+/* src/pages/ChatHome.css (TAMBAHAN BARU) */
+
+/* === Pesan Berisi Media (di MessageList) === */
+.message-bubble {
+  /* Izinkan konten media mengambil lebar penuh bubble */
+  display: flex;
+  flex-direction: column;
+}
+
+.message-image,
+.message-video {
+  width: 100%;
+  max-width: 350px; /* Batasi ukuran media */
+  height: auto;
+  border-radius: 12px;
+  margin-bottom: 8px; /* Jarak jika ada caption */
+}
+
+/* Jika bubble hanya berisi gambar (tanpa caption), hapus padding bubble */
+.message-bubble .message-image:only-child,
+.message-bubble .message-video:only-child {
+  margin-bottom: 0;
+}
+
+.message.sent .message-bubble {
+  /* Sesuaikan padding agar gambar/video pas */
+  padding: 6px;
+}
+
+.message.received .message-bubble {
+  padding: 6px;
+}
+
+/* Style untuk caption di bawah media */
+.message-text.caption {
+  padding: 4px 8px 0; /* Padding kecil untuk caption */
+}
+
+/* Style untuk file (link) */
+.message-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text-primary);
+  max-width: 300px;
+}
+.message-file:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+.message-file span {
+  font-weight: 600;
+  font-size: 0.9rem;
+  /* Potong nama file jika terlalu panjang */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.message.sent .message-file {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+.message.sent .message-file:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+
+/* === Form Kirim Pesan (SendForm) === */
+
+/* Tombol Attach (Klip Kertas) */
+.attach-btn {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 8px;
+  margin-right: 8px;
+}
+.attach-btn:hover {
+  background-color: var(--border-color);
+  color: var(--primary-color);
+}
+
+/* Tombol Kirim */
+.send-form button[type="submit"] {
+  width: 50px; /* Lebar tetap untuk tombol kirim */
+}
+
+/* Animasi loading untuk tombol kirim */
+@keyframes spin-btn {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.loading-spinner-btn {
+  animation: spin-btn 1s linear infinite;
+}
+
+/* Preview File */
+.file-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px;
+  background-color: #e6fffa; /* Warna mint muda */
+  color: var(--primary-dark);
+  font-size: 0.9rem;
+  border-top: 1px solid var(--border-color);
+}
+.file-preview span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 10px;
+}
+.file-preview button {
+  background: none;
+  border: none;
+  color: var(--primary-dark);
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.avatar-img {
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: var(--border-color); /* Warna fallback jika gambar error */
+  flex-shrink: 0; /* Mencegah gambar menyusut */
+}
+
+/* === Sidebar Header (Modifikasi) === */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Beri jarak antar elemen */
+}
+.user-profile-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1; /* Ambil sisa ruang */
+}
+
+/* Tombol Profil Baru */
+.profile-btn {
+  background: none;
+  color: var(--text-secondary);
+  padding: 6px;
+  font-size: 1.1rem;
+}
+.profile-btn:hover {
+  background-color: var(--border-color);
+  color: var(--primary-color);
+}
+
+/* Tombol Logout (Modifikasi) */
+.logout-btn {
+  margin-left: auto; /* Dorong tombol logout ke paling kanan */
+  flex-shrink: 0;
+}
+
+
+/* === Search Result (Modifikasi) === */
+.search-result {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Pastikan ada jarak */
+}
+
+
+/* === Chat Item (Modifikasi) === */
+.chat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Beri jarak antara avatar dan info */
+}
+
+
+/* === Chat Header (Modifikasi) === */
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* Beri jarak antara avatar dan nama */
+}
+
+/* src/pages/ChatHome.css (TAMBAHAN BARU) */
+
+/* === Komponen Avatar (Modifikasi) === */
+.avatar-container {
+  border-radius: 50%;
+  background-color: var(--border-color); /* Warna fallback */
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden; /* Pastikan gambar pas */
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-placeholder {
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+.avatar-container:has(.avatar-placeholder) {
+  /* Style khusus jika ini placeholder, misal: warna hijau mint */
+  background-color: #e6fffa;
+  color: var(--primary-dark);
+}
+
+/* === Sidebar Header (Modifikasi) === */
+.sidebar-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+/* Tombol di user-profile (Modifikasi) */
+.user-profile {
+  margin-top: 0; /* Hapus margin atas */
+}
+.user-profile .profile-btn {
+  margin-left: 8px; /* Jarak dari nama */
+}
+
+/* === Message Sender (di MessageList) === */
+.message-sender {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--primary-color);
+}
+
+/* src/pages/ChatHome.css (TAMBAHAN BARU) */
+
+/* === Tombol Reaksi pada Bubble Chat === */
+.message-bubble-wrapper {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  max-width: 100%;
+}
+.message.sent .message-bubble-wrapper {
+  align-items: flex-end;
+}
+.message.received .message-bubble-wrapper {
+  align-items: flex-start;
+}
+
+.message-bubble {
+  position: relative; /* Diperlukan untuk tombol reaksi */
+}
+
+.reaction-btn {
+  position: absolute;
+  top: -12px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: none; /* Sembunyi secara default */
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 20;
+}
+.message-bubble:hover .reaction-btn {
+  display: flex; /* Tampilkan saat hover */
+}
+.reaction-btn:hover {
+  background-color: #e6fffa;
+  color: var(--primary-dark);
+}
+.message.sent .reaction-btn {
+  right: -10px; /* Posisi untuk pesan terkirim */
+}
+.message.received .reaction-btn {
+  left: -10px; /* Posisi untuk pesan diterima */
+}
+
+/* Pop-up Picker Reaksi */
+.reaction-picker-popup {
+  position: absolute;
+  top: -50px; /* Posisikan di atas bubble */
+  z-index: 25;
+  box-shadow: var(--shadow);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.message.sent .reaction-picker-popup {
+  right: 0;
+}
+.message.received .reaction-picker-popup {
+  left: 0;
+}
+/* Style untuk emoji picker di dalam popup */
+.reaction-picker-popup .emoji-picker-react {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+
+/* === Tampilan Reaksi di Bawah Bubble === */
+.reactions-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  /* Posisikan agar tidak melebihi bubble */
+  max-width: 70%; 
+}
+.reaction-tag {
+  background-color: #e6fffa; /* Mint muda */
+  color: var(--primary-dark);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--primary-color);
+}
+.message.sent .reactions-container {
+  align-self: flex-end; /* Ratakan ke kanan */
+}
+.message.received .reactions-container {
+  align-self: flex-start; /* Ratakan ke kiri */
+}
+
+
+/* === Emoji Picker untuk Input Teks === */
+.send-form-wrapper {
+  position: relative; /* Diperlukan untuk picker */
+}
+.emoji-picker-input-container {
+  position: absolute;
+  bottom: 100%; /* Posisikan di atas form input */
+  left: 0;
+  width: 100%;
+  z-index: 20;
+  /* Hapus border/shadow default dari library */
+  border: none !important; 
+  box-shadow: var(--shadow) !important;
+}
+.emoji-picker-input-container .emoji-picker-react {
+  width: 100% !important;
+  height: 350px !important;
+  border-radius: 8px 8px 0 0 !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: none !important;
+}
+
+/* Modifikasi SendForm untuk tombol emoji baru */
+.send-form {
+  position: relative;
+  z-index: 21; /* Pastikan di atas picker */
+}
+.send-form .attach-btn {
+  margin-right: 0; /* Hapus margin kanan */
+}

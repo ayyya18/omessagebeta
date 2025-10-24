@@ -1,10 +1,9 @@
-// src/pages/ChatHome.jsx
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import './ChatHome.css'; // Kita akan tambahkan style baru nanti
+import './ChatHome.css';
 import { useAuth } from '../context/AuthContext';
-import { useChat } from '../context/ChatContext'; // <-- Gunakan ChatContext
+import { useChat } from '../context/ChatContext';
 import {
   collection,
   query,
@@ -19,31 +18,55 @@ import {
   orderBy,
   addDoc,
 } from 'firebase/firestore';
-import { FiSearch, FiSend, FiLoader } from 'react-icons/fi'; // Ikon
+import { FiSearch, FiSend, FiPaperclip, FiLoader, FiFile, FiUser, FiUsers, FiSmile } from 'react-icons/fi'; 
+import Picker from 'emoji-picker-react'; 
+import ProfileModal from '../components/ProfileModal';
+import CreateGroupModal from '../components/CreateGroupModal';
+
+const CLOUDINARY_CLOUD_NAME = "dca2fjndp"; 
+const CLOUDINARY_UPLOAD_PRESET = "message-app-preset"; 
+
+const Avatar = ({ src, alt, size = 44, isGroup = false }) => {
+  const placeholder = isGroup ? 
+    <FiUsers size={size * 0.6} /> : 
+    (alt[0] || '?');
+    
+  return (
+    <div 
+      className="avatar-container" 
+      style={{ width: `${size}px`, height: `${size}px` }}
+    >
+      {src ? (
+        <img 
+          src={src} 
+          alt={alt}
+          className="avatar-img"
+        />
+      ) : (
+        <div className="avatar-placeholder">{placeholder}</div>
+      )}
+    </div>
+  );
+};
 
 // ==========================================
-// KOMPONEN PENCARIAN (BARU)
+// KOMPONEN PENCARIAN (Search)
+// (Tidak ada perubahan)
 // ==========================================
 const Search = () => {
   const [username, setUsername] = useState('');
-  const [user, setUser] = useState(null); // Hasil pencarian
+  const [user, setUser] = useState(null); 
   const [err, setErr] = useState(false);
-
   const { currentUser } = useAuth();
   const { dispatch } = useChat();
 
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!username.trim()) return;
-    
-    // Buat query untuk mencari user berdasarkan displayName
-    // Note: Firestore case-sensitive, jadi 'UserA' != 'usera'
-    // Untuk pencarian yang lebih canggih, perlu Algolia/Elasticsearch
     const q = query(
       collection(db, 'users'),
       where('displayName', '==', username.trim())
     );
-
     try {
       const querySnapshot = await getDocs(q);
       if (querySnapshot.empty) {
@@ -51,7 +74,6 @@ const Search = () => {
         setUser(null);
       } else {
         querySnapshot.forEach((doc) => {
-          // Jangan tampilkan diri sendiri di hasil pencarian
           if (doc.data().uid !== currentUser.uid) {
             setUser(doc.data());
           } else {
@@ -66,56 +88,35 @@ const Search = () => {
     }
   };
 
-  // Fungsi saat user di hasil pencarian di-klik
   const handleSelect = async () => {
     if (!user) return;
-
-    // Buat ID chat gabungan (konsisten)
     const combinedId =
       currentUser.uid > user.uid
         ? currentUser.uid + user.uid
         : user.uid + currentUser.uid;
-
     try {
-      // Cek apakah 'chats' (ruang obrolan) sudah ada
       const res = await getDoc(doc(db, 'chats', combinedId));
-
       if (!res.exists()) {
-        // Jika belum ada, buat ruang obrolan baru
         await setDoc(doc(db, 'chats', combinedId), { messages: [] });
-
-        // Update 'userChats' untuk *pengguna saat ini*
         await updateDoc(doc(db, 'userChats', currentUser.uid), {
-          [combinedId + '.userInfo']: {
-            uid: user.uid,
-            displayName: user.displayName,
-            photoURL: user.photoURL || '',
-          },
+          [combinedId + '.userInfo']: { uid: user.uid, displayName: user.displayName, photoURL: user.photoURL || '' },
+          [combinedId + '.isGroup']: false,
           [combinedId + '.date']: serverTimestamp(),
           [combinedId + '.lastMessage']: { text: "" },
         });
-
-        // Update 'userChats' untuk *pengguna yang diajak chat*
         await updateDoc(doc(db, 'userChats', user.uid), {
-          [combinedId + '.userInfo']: {
-            uid: currentUser.uid,
-            displayName: currentUser.displayName,
-            photoURL: currentUser.photoURL || '',
-          },
+          [combinedId + '.userInfo']: { uid: currentUser.uid, displayName: currentUser.displayName, photoURL: currentUser.photoURL || '' },
+          [combinedId + '.isGroup']: false,
           [combinedId + '.date']: serverTimestamp(),
           [combinedId + '.lastMessage']: { text: "" },
         });
       }
-
-      // Pilih chat ini di Context
       dispatch({ type: 'CHANGE_USER', payload: user });
-
     } catch (err) {
       console.error("Gagal membuat chat:", err);
     }
-
-    setUser(null); // Tutup hasil pencarian
-    setUsername(''); // Kosongkan input
+    setUser(null);
+    setUsername('');
   };
 
   return (
@@ -132,7 +133,7 @@ const Search = () => {
       {err && <span className="search-error">Pengguna tidak ditemukan</span>}
       {user && (
         <div className="search-result" onClick={handleSelect}>
-          {/* <img src={user.photoURL} alt="" /> */}
+          <Avatar src={user.photoURL} alt={user.displayName} size={40} />
           <div className="chat-info">
             <span className="chat-name">{user.displayName}</span>
             <span className="chat-last-msg">Mulai obrolan baru</span>
@@ -144,7 +145,8 @@ const Search = () => {
 };
 
 // ==========================================
-// KOMPONEN DAFTAR CHAT (BARU)
+// KOMPONEN DAFTAR CHAT (ChatList)
+// (Tidak ada perubahan)
 // ==========================================
 const ChatList = () => {
   const [chats, setChats] = useState([]);
@@ -153,25 +155,34 @@ const ChatList = () => {
 
   useEffect(() => {
     if (!currentUser?.uid) return;
-
-    // Listener real-time ke 'userChats' milik kita
     const unsub = onSnapshot(doc(db, "userChats", currentUser.uid), (doc) => {
       if (doc.exists()) {
-        // Ubah data object menjadi array dan urutkan
         const chatEntries = Object.entries(doc.data());
         const sortedChats = chatEntries
-          .filter(chat => chat[1].date) // Filter yang mungkin belum lengkap
-          .sort((a, b) => b[1].date - a[1].date); // Urutkan terbaru di atas
+          .filter(chat => chat[1] && chat[1].date)
+          .sort((a, b) => b[1].date - a[1].date);
         setChats(sortedChats);
       }
     });
-
     return () => unsub();
-  }, [currentUser?.uid]); // Jalankan ulang jika user berubah
+  }, [currentUser?.uid]);
 
-  const handleSelect = (userInfo) => {
-    dispatch({ type: "CHANGE_USER", payload: userInfo });
+  const handleSelect = (chatInfo) => {
+    if (chatInfo.isGroup) {
+      dispatch({ type: "CHANGE_USER", payload: chatInfo });
+    } else {
+      dispatch({ type: "CHANGE_USER", payload: chatInfo.userInfo });
+    }
   };
+
+  const renderLastMessage = (msg) => {
+    if (!msg) return "...";
+    if (msg.fileType === 'image') return "🖼️ Foto";
+    if (msg.fileType === 'video') return "📹 Video";
+    if (msg.fileType === 'raw') return "📄 File";
+    if (msg.text) return msg.text;
+    return "...";
+  }
 
   return (
     <div className="chat-list">
@@ -182,12 +193,18 @@ const ChatList = () => {
         <div
           className={`chat-item ${chat[0] === chatData.chatId ? 'active' : ''}`}
           key={chat[0]}
-          onClick={() => handleSelect(chat[1].userInfo)}
+          onClick={() => handleSelect(chat[1])}
         >
-          {/* <img src={chat[1].userInfo.photoURL} alt="" /> */}
+          <Avatar 
+            src={chat[1].userInfo.photoURL} 
+            alt={chat[1].userInfo.displayName}
+            isGroup={chat[1].isGroup}
+          />
           <div className="chat-info">
             <span className="chat-name">{chat[1].userInfo.displayName}</span>
-            <p className="chat-last-msg">{chat[1].lastMessage?.text || "..."}</p>
+            <p className="chat-last-msg">
+              {renderLastMessage(chat[1].lastMessage)}
+            </p>
           </div>
         </div>
       ))}
@@ -196,58 +213,87 @@ const ChatList = () => {
 };
 
 // ==========================================
-// KOMPONEN SIDEBAR (MODIFIKASI)
+// KOMPONEN SIDEBAR
+// (Tidak ada perubahan)
 // ==========================================
 const Sidebar = () => {
   const { currentUser } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
 
   const handleLogout = () => {
     signOut(auth);
-    // Kita akan otomatis ter-redirect ke /login oleh App.jsx
   };
 
   return (
-    <div className="sidebar">
-      <div className="sidebar-header">
-        <h3>My Chat App</h3>
-        <div className="user-profile">
-          <span>{currentUser?.displayName || 'User'}</span>
-          <button onClick={handleLogout} className="logout-btn">
-            Logout
-          </button>
+    <>
+      <div className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-header-top">
+            <h3>My Chat App</h3>
+            <button onClick={() => setIsGroupModalOpen(true)} className="profile-btn" title="Buat Grup Baru">
+              <FiUsers />
+            </button>
+          </div>
+          <div className="user-profile">
+            <Avatar src={currentUser?.photoURL} alt={currentUser?.displayName || 'U'} size={24} />
+            <span className="user-profile-name">{currentUser?.displayName || 'User'}</span>
+            <button onClick={() => setIsProfileModalOpen(true)} className="profile-btn" title="Atur Profil">
+              <FiUser />
+            </button>
+            <button onClick={handleLogout} className="logout-btn" title="Logout">
+              Logout
+            </button>
+          </div>
         </div>
+        <Search />
+        <ChatList />
       </div>
-      <Search /> {/* <-- Tambahkan Komponen Search */}
-      <ChatList /> {/* <-- Ganti "Obrolan Umum" dengan ChatList */}
-    </div>
+      
+      <ProfileModal 
+        show={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
+      <CreateGroupModal 
+        show={isGroupModalOpen}
+        onClose={() => setIsGroupModalOpen(false)}
+      />
+    </>
   );
 };
 
 // ==========================================
-// KOMPONEN DAFTAR PESAN (MODIFIKASI)
+// KOMPONEN DAFTAR PESAN (MessageList)
+// (MODIFIKASI BESAR: Tambah state & logika reaksi)
 // ==========================================
 const MessageList = () => {
   const [messages, setMessages] = useState([]);
   const { currentUser } = useAuth();
-  const { data } = useChat(); // Ambil data chat yg aktif
+  const { data } = useChat();
   const messagesEndRef = useRef(null);
+  
+  // State baru untuk mengontrol picker reaksi
+  const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   useEffect(() => {
+    // Reset picker saat chat berubah
+    setReactionPickerMsgId(null);
+    
     if (!data.chatId) {
-      setMessages([]); // Kosongkan pesan jika tidak ada chat dipilih
+      setMessages([]);
       return;
     }
-
-    // Listener real-time ke sub-koleksi 'messages' di dalam 'chats'
+    
+    const collectionPath = data.isGroup ? "groups" : "chats";
     const q = query(
-      collection(db, "chats", data.chatId, "messages"),
+      collection(db, collectionPath, data.chatId, "messages"),
       orderBy("createdAt")
     );
-
+    
     const unsub = onSnapshot(q, (querySnapshot) => {
       const newMessages = [];
       querySnapshot.forEach((doc) => {
@@ -255,10 +301,99 @@ const MessageList = () => {
       });
       setMessages(newMessages);
     });
-
     return () => unsub();
-  }, [data.chatId]); // Jalankan ulang jika chatId berubah
+  }, [data.chatId, data.isGroup]);
 
+  // FUNGSI BARU: Menangani klik reaksi
+  const handleReaction = async (emoji, msg) => {
+    const collectionPath = data.isGroup ? "groups" : "chats";
+    const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id);
+
+    try {
+      const docSnap = await getDoc(msgRef);
+      if (!docSnap.exists()) return;
+
+      const reactions = docSnap.data().reactions || {};
+      const currentReactionList = reactions[emoji.emoji] || [];
+
+      let updatedReactions = { ...reactions };
+
+      if (currentReactionList.includes(currentUser.uid)) {
+        // Jika sudah bereaksi: hapus reaksi
+        updatedReactions[emoji.emoji] = FieldValue.arrayRemove(currentUser.uid);
+      } else {
+        // Jika belum bereaksi: tambah reaksi
+        updatedReactions[emoji.emoji] = FieldValue.arrayUnion(currentUser.uid);
+      }
+
+      // Hapus map emoji jika list-nya jadi kosong
+      if (updatedReactions[emoji.emoji].length === 0) {
+         delete updatedReactions[emoji.emoji];
+      }
+
+      await updateDoc(msgRef, { reactions: updatedReactions });
+
+    } catch (err) {
+      console.error("Gagal menambah reaksi: ", err);
+    }
+    
+    setReactionPickerMsgId(null); // Tutup picker
+  };
+  
+  // FUNGSI BARU: Render reaksi di bawah bubble
+  const RenderReactions = ({ reactions }) => {
+    if (!reactions || Object.keys(reactions).length === 0) {
+      return null;
+    }
+
+    return (
+      <div className="reactions-container">
+        {Object.entries(reactions)
+          // Filter hanya yang punya minimal 1 reaksi
+          .filter(([emoji, uids]) => uids && uids.length > 0)
+          .map(([emoji, uids]) => (
+            <span key={emoji} className="reaction-tag">
+              {emoji} {uids.length}
+            </span>
+          ))
+        }
+      </div>
+    );
+  };
+
+  // Komponen MessageContent (Tidak berubah)
+  const MessageContent = ({ msg }) => {
+    switch (msg.fileType) {
+      case 'image':
+        return (
+          <>
+            <img src={msg.fileURL} alt="Kiriman gambar" className="message-image" />
+            {msg.text && <p className="message-text caption">{msg.text}</p>}
+          </>
+        );
+      case 'video':
+        return (
+          <>
+            <video src={msg.fileURL} controls className="message-video" />
+            {msg.text && <p className="message-text caption">{msg.text}</p>}
+          </>
+        );
+      case 'raw':
+      case 'auto':
+        return (
+          <>
+            <a href={msg.fileURL} target="_blank" rel="noopener noreferrer" className="message-file">
+              <FiFile size={24} />
+              <span>{msg.fileName || 'File Terlampir'}</span>
+            </a>
+            {msg.text && <p className="message-text caption">{msg.text}</p>}
+          </>
+        );
+      default:
+        return <p className="message-text">{msg.text}</p>;
+    }
+  };
+  
   const formatTime = (timestamp) => {
     if (!timestamp) return 'Baru saja';
     const date = timestamp.toDate();
@@ -272,10 +407,52 @@ const MessageList = () => {
           key={msg.id}
           className={`message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`}
         >
-          <div className="message-bubble">
-            {/* Kita tidak perlu nama pengirim di chat 1-on-1 */}
-            <p className="message-text">{msg.text}</p>
-            <span className="message-time">{formatTime(msg.createdAt)}</span>
+          <div className="message-bubble-wrapper">
+            <div className="message-bubble">
+              {/* Tombol Reaksi (muncul saat hover) */}
+              <button 
+                className="reaction-btn" 
+                onClick={() => setReactionPickerMsgId(msg.id === reactionPickerMsgId ? null : msg.id)}
+              >
+                <FiSmile />
+              </button>
+
+              {/* Picker Reaksi (muncul jika ID cocok) */}
+              {reactionPickerMsgId === msg.id && (
+                <div className="reaction-picker-popup">
+                  <Picker 
+                    onEmojiClick={(emoji) => handleReaction(emoji, msg)} 
+                    pickerStyle={{ width: '250px', height: '200px' }} 
+                    disableSearchBar
+                    disableSkinTonePicker
+                    groupVisibility={{
+                      recently_used: false,
+                      smileys_emotion: true,
+                      animals_nature: false,
+                      food_drink: false,
+                      travel_places: false,
+                      activities: false,
+                      objects: false,
+                      symbols: false,
+                      flags: false,
+                    }}
+                    // Tampilkan hanya reaksi umum
+                    preload
+                  />
+                </div>
+              )}
+              
+              {data.isGroup && msg.senderId !== currentUser.uid && (
+                <p className="message-sender">
+                  {msg.senderName || 'User'}
+                </p>
+              )}
+              <MessageContent msg={msg} />
+              <span className="message-time">{formatTime(msg.createdAt)}</span>
+            </div>
+            
+            {/* Tampilkan Reaksi di Sini */}
+            <RenderReactions reactions={msg.reactions} />
           </div>
         </div>
       ))}
@@ -284,80 +461,220 @@ const MessageList = () => {
   );
 };
 
+
 // ==========================================
-// KOMPONEN FORM KIRIM (MODIFIKASI)
+// KOMPONEN FORM KIRIM (SendForm)
+// (MODIFIKASI: Tambah state & tombol emoji picker)
 // ==========================================
 const SendForm = () => {
   const [text, setText] = useState('');
+  const [file, setFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  
+  // State baru untuk emoji picker input
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  
   const { currentUser } = useAuth();
-  const { data } = useChat(); // Ambil data chat yg aktif
+  const { data } = useChat();
+  const pickerRef = useRef(null); // Ref untuk menutup picker saat klik di luar
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (text.trim() === '' || !currentUser || !data.chatId) return;
+  // FUNGSI BARU: Menangani klik emoji
+  const onEmojiClick = (emojiObject) => {
+    setText(prevText => prevText + emojiObject.emoji);
+    setShowEmojiPicker(false); // Tutup picker setelah pilih
+  };
+  
+  // FUNGSI BARU: Menutup picker saat klik di luar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [pickerRef]);
 
+
+  const handleFileChange = (e) => {
+    if (e.target.files[0]) setFile(e.target.files[0]);
+  };
+
+  const uploadFile = async () => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+    let resourceType = 'auto';
+    if (file.type.startsWith('image/')) resourceType = 'image';
+    if (file.type.startsWith('video/')) resourceType = 'video';
+    
     try {
-      // Kirim pesan ke sub-koleksi 'messages'
-      await addDoc(collection(db, "chats", data.chatId, "messages"), {
-        text: text,
-        senderId: currentUser.uid,
-        createdAt: serverTimestamp(),
-      });
-
-      // Update 'lastMessage' di 'userChats' untuk kedua pengguna
-      await updateDoc(doc(db, "userChats", currentUser.uid), {
-        [data.chatId + ".lastMessage"]: { text },
-        [data.chatId + ".date"]: serverTimestamp(),
-      });
-      
-      await updateDoc(doc(db, "userChats", data.user.uid), {
-        [data.chatId + ".lastMessage"]: { text },
-        [data.chatId + ".date"]: serverTimestamp(),
-      });
-
-      setText('');
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
+        { method: "POST", body: formData }
+      );
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      return { url: data.secure_url, type: data.resource_type, name: file.name };
     } catch (err) {
-      console.error("Error mengirim pesan: ", err);
+      console.error("Cloudinary upload error:", err);
+      return null;
     }
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (text.trim() === '' && !file) return;
+    if (!currentUser || !data.chatId) return;
+    setIsUploading(true);
+    let fileURL = null, fileType = null, fileName = null;
+
+    if (file) {
+      const uploadResult = await uploadFile();
+      if (uploadResult) {
+        fileURL = uploadResult.url; fileType = uploadResult.type; fileName = uploadResult.name;
+      } else {
+        setIsUploading(false); alert("Gagal mengupload file."); return;
+      }
+    }
+    
+    const collectionPath = data.isGroup ? "groups" : "chats";
+    const messageData = {
+      senderId: currentUser.uid,
+      senderName: currentUser.displayName,
+      createdAt: serverTimestamp(),
+      text: text,
+      fileURL: fileURL, fileType: fileType, fileName: fileName,
+      reactions: {} // Inisialisasi map reaksi (PENTING)
+    };
+
+    try {
+      await addDoc(collection(db, collectionPath, data.chatId, "messages"), messageData);
+      const lastMessageData = { 
+        text: text || (fileName ? `📄 ${fileName}` : (fileType === 'image' ? "🖼️ Foto" : "📹 Video")),
+        fileType: fileType 
+      };
+      
+      if (data.isGroup) {
+        const groupDoc = await getDoc(doc(db, "groups", data.chatId));
+        const members = groupDoc.data().members || [];
+        for (const uid of members) {
+          await updateDoc(doc(db, "userChats", uid), {
+            [data.chatId + ".lastMessage"]: lastMessageData,
+            [data.chatId + ".date"]: serverTimestamp(),
+          });
+        }
+      } else {
+        await updateDoc(doc(db, "userChats", currentUser.uid), {
+          [data.chatId + ".lastMessage"]: lastMessageData,
+          [data.chatId + ".date"]: serverTimestamp(),
+        });
+        await updateDoc(doc(db, "userChats", data.user.uid), {
+          [data.chatId + ".lastMessage"]: lastMessageData,
+          [data.chatId + ".date"]: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.error("Error mengirim pesan: ", err);
+    }
+    
+    setText('');
+    setFile(null);
+    if (document.getElementById('file-upload')) {
+      document.getElementById('file-upload').value = null;
+    }
+    setIsUploading(false);
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="send-form">
-      <input
-        type="text"
-        placeholder="Ketik pesan Anda..."
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
-      <button type="submit" className="primary"><FiSend /></button>
-    </form>
+    <>
+      {file && !isUploading && (
+        <div className="file-preview">
+          <span>File terpilih: {file.name}</span>
+          <button onClick={() => {
+            setFile(null);
+            document.getElementById('file-upload').value = null;
+          }}>X</button>
+        </div>
+      )}
+      
+      {/* Wrapper untuk form dan picker */}
+      <div className="send-form-wrapper">
+        {/* Emoji Picker untuk Input */}
+        {showEmojiPicker && (
+          <div ref={pickerRef} className="emoji-picker-input-container">
+            <Picker 
+              onEmojiClick={onEmojiClick} 
+              pickerStyle={{ width: '100%', boxShadow: 'none' }}
+              preload
+            />
+          </div>
+        )}
+      
+        <form onSubmit={handleSubmit} className="send-form">
+          <input
+            type="file" id="file-upload" style={{ display: 'none' }}
+            onChange={handleFileChange} disabled={isUploading}
+          />
+          <label htmlFor="file-upload" className="attach-btn" title="Lampirkan File">
+            <FiPaperclip size={20} />
+          </label>
+          
+          {/* Tombol Emoji Baru */}
+          <button 
+            type="button" 
+            className="attach-btn" 
+            title="Pilih Emoji"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+          >
+            <FiSmile size={20} />
+          </button>
+          
+          <input
+            type="text"
+            placeholder="Ketik pesan atau caption..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onFocus={() => setShowEmojiPicker(false)} // Tutup picker saat ketik
+            disabled={isUploading}
+          />
+          <button type="submit" className="primary" disabled={isUploading}>
+            {isUploading ? <FiLoader className="loading-spinner-btn" /> : <FiSend />}
+          </button>
+        </form>
+      </div>
+    </>
   );
 };
 
 // ==========================================
-// KOMPONEN CHAT WINDOW (MODIFIKASI)
+// KOMPONEN CHAT WINDOW
+// (Tidak ada perubahan)
 // ==========================================
 const ChatWindow = () => {
-  const { data } = useChat(); // Ambil data chat yg aktif
+  const { data } = useChat(); 
 
-  // Jika belum ada chat dipilih, tampilkan placeholder
   if (!data.chatId) {
     return (
       <div className="chat-window placeholder">
         <div className="placeholder-content">
           <FiSend size={50} />
           <h2>Selamat Datang!</h2>
-          <p>Cari pengguna untuk memulai obrolan baru.</p>
+          <p>Pilih obrolan atau buat grup baru untuk memulai.</p>
         </div>
       </div>
     );
   }
 
-  // Jika sudah ada, tampilkan chat
   return (
     <div className="chat-window">
       <div className="chat-header">
-        {/* Tampilkan nama user yang kita ajak chat */}
+        <Avatar 
+          src={data.user?.photoURL} 
+          alt={data.user?.displayName || 'C'} 
+          size={40} 
+          isGroup={data.isGroup}
+        />
         <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3>
       </div>
       <MessageList />
@@ -367,7 +684,8 @@ const ChatWindow = () => {
 };
 
 // ==========================================
-// HALAMAN UTAMA (TETAP SAMA)
+// HALAMAN UTAMA (ChatHome)
+// (Tidak ada perubahan)
 // ==========================================
 const ChatHome = () => {
   return (
