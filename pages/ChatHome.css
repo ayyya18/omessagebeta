@@ -227,14 +227,6 @@
 .search-result:hover {
   background-color: #e6fffa;
 }
-/* Placeholder untuk foto profil, bisa diaktifkan nanti
-.search-result img {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-*/
 
 /* === ChatList (Modifikasi chat-item) === */
 .chat-list {
@@ -255,16 +247,6 @@
   gap: 10px;
   padding: 12px 20px; /* Sesuaikan padding */
 }
-
-/* Placeholder foto profil */
-/*
-.chat-item img {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-*/
 
 .chat-info {
   width: 100%;
@@ -313,14 +295,12 @@
   margin-bottom: 8px; /* Jarak jika ada caption */
 }
 
-/* Jika bubble hanya berisi gambar (tanpa caption), hapus padding bubble */
 .message-bubble .message-image:only-child,
 .message-bubble .message-video:only-child {
   margin-bottom: 0;
 }
 
 .message.sent .message-bubble {
-  /* Sesuaikan padding agar gambar/video pas */
   padding: 6px;
 }
 
@@ -328,12 +308,10 @@
   padding: 6px;
 }
 
-/* Style untuk caption di bawah media */
 .message-text.caption {
-  padding: 4px 8px 0; /* Padding kecil untuk caption */
+  padding: 4px 8px 0; 
 }
 
-/* Style untuk file (link) */
 .message-file {
   display: flex;
   align-items: center;
@@ -351,7 +329,6 @@
 .message-file span {
   font-weight: 600;
   font-size: 0.9rem;
-  /* Potong nama file jika terlalu panjang */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -367,7 +344,6 @@
 
 /* === Form Kirim Pesan (SendForm) === */
 
-/* Tombol Attach (Klip Kertas) */
 .attach-btn {
   padding: 10px 12px;
   display: flex;
@@ -383,12 +359,10 @@
   color: var(--primary-color);
 }
 
-/* Tombol Kirim */
 .send-form button[type="submit"] {
-  width: 50px; /* Lebar tetap untuk tombol kirim */
+  width: 50px; 
 }
 
-/* Animasi loading untuk tombol kirim */
 @keyframes spin-btn {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -397,13 +371,12 @@
   animation: spin-btn 1s linear infinite;
 }
 
-/* Preview File */
 .file-preview {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 8px 20px;
-  background-color: #e6fffa; /* Warna mint muda */
+  background-color: #e6fffa; 
   color: var(--primary-dark);
   font-size: 0.9rem;
   border-top: 1px solid var(--border-color);
@@ -427,25 +400,24 @@
 .avatar-img {
   border-radius: 50%;
   object-fit: cover;
-  background-color: var(--border-color); /* Warna fallback jika gambar error */
-  flex-shrink: 0; /* Mencegah gambar menyusut */
+  background-color: var(--border-color); 
+  flex-shrink: 0; 
 }
 
 /* === Sidebar Header (Modifikasi) === */
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 8px; /* Beri jarak antar elemen */
+  gap: 8px; 
 }
 .user-profile-name {
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1; /* Ambil sisa ruang */
+  flex: 1; 
 }
 
-/* Tombol Profil Baru */
 .profile-btn {
   background: none;
   color: var(--text-secondary);
@@ -457,9 +429,8 @@
   color: var(--primary-color);
 }
 
-/* Tombol Logout (Modifikasi) */
 .logout-btn {
-  margin-left: auto; /* Dorong tombol logout ke paling kanan */
+  margin-left: auto; 
   flex-shrink: 0;
 }
 
@@ -468,7 +439,7 @@
 .search-result {
   display: flex;
   align-items: center;
-  gap: 10px; /* Pastikan ada jarak */
+  gap: 10px; 
 }
 
 
@@ -476,7 +447,7 @@
 .chat-item {
   display: flex;
   align-items: center;
-  gap: 12px; /* Beri jarak antara avatar dan info */
+  gap: 12px; 
 }
 
 
@@ -484,20 +455,18 @@
 .chat-header {
   display: flex;
   align-items: center;
-  gap: 12px; /* Beri jarak antara avatar dan nama */
+  gap: 12px; 
 }
-
-/* src/pages/ChatHome.css (TAMBAHAN BARU) */
 
 /* === Komponen Avatar (Modifikasi) === */
 .avatar-container {
   border-radius: 50%;
-  background-color: var(--border-color); /* Warna fallback */
+  background-color: var(--border-color); 
   flex-shrink: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden; /* Pastikan gambar pas */
+  overflow: hidden; 
 }
 .avatar-img {
   width: 100%;
@@ -510,7 +479,6 @@
   text-transform: uppercase;
 }
 .avatar-container:has(.avatar-placeholder) {
-  /* Style khusus jika ini placeholder, misal: warna hijau mint */
   background-color: #e6fffa;
   color: var(--primary-dark);
 }
@@ -522,12 +490,11 @@
   align-items: center;
   margin-bottom: 16px;
 }
-/* Tombol di user-profile (Modifikasi) */
 .user-profile {
-  margin-top: 0; /* Hapus margin atas */
+  margin-top: 0; 
 }
 .user-profile .profile-btn {
-  margin-left: 8px; /* Jarak dari nama */
+  margin-left: 8px; 
 }
 
 /* === Message Sender (di MessageList) === */
@@ -537,8 +504,6 @@
   margin-bottom: 4px;
   color: var(--primary-color);
 }
-
-/* src/pages/ChatHome.css (TAMBAHAN BARU) */
 
 /* === Tombol Reaksi pada Bubble Chat === */
 .message-bubble-wrapper {
@@ -555,7 +520,7 @@
 }
 
 .message-bubble {
-  position: relative; /* Diperlukan untuk tombol reaksi */
+  position: relative; 
 }
 
 .reaction-btn {
@@ -566,7 +531,7 @@
   border-radius: 50%;
   width: 28px;
   height: 28px;
-  display: none; /* Sembunyi secara default */
+  display: none; 
   align-items: center;
   justify-content: center;
   padding: 0;
@@ -575,23 +540,23 @@
   z-index: 20;
 }
 .message-bubble:hover .reaction-btn {
-  display: flex; /* Tampilkan saat hover */
+  display: flex; 
 }
 .reaction-btn:hover {
   background-color: #e6fffa;
   color: var(--primary-dark);
 }
 .message.sent .reaction-btn {
-  right: -10px; /* Posisi untuk pesan terkirim */
+  right: -10px; 
 }
 .message.received .reaction-btn {
-  left: -10px; /* Posisi untuk pesan diterima */
+  left: -10px; 
 }
 
 /* Pop-up Picker Reaksi */
 .reaction-picker-popup {
   position: absolute;
-  top: -50px; /* Posisikan di atas bubble */
+  top: -50px; 
   z-index: 25;
   box-shadow: var(--shadow);
   border-radius: 8px;
@@ -603,7 +568,6 @@
 .message.received .reaction-picker-popup {
   left: 0;
 }
-/* Style untuk emoji picker di dalam popup */
 .reaction-picker-popup .emoji-picker-react {
   border: none !important;
   box-shadow: none !important;
@@ -616,11 +580,10 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
-  /* Posisikan agar tidak melebihi bubble */
   max-width: 70%; 
 }
 .reaction-tag {
-  background-color: #e6fffa; /* Mint muda */
+  background-color: #e6fffa; 
   color: var(--primary-dark);
   padding: 2px 8px;
   border-radius: 10px;
@@ -629,24 +592,23 @@
   border: 1px solid var(--primary-color);
 }
 .message.sent .reactions-container {
-  align-self: flex-end; /* Ratakan ke kanan */
+  align-self: flex-end; 
 }
 .message.received .reactions-container {
-  align-self: flex-start; /* Ratakan ke kiri */
+  align-self: flex-start; 
 }
 
 
 /* === Emoji Picker untuk Input Teks === */
 .send-form-wrapper {
-  position: relative; /* Diperlukan untuk picker */
+  position: relative; 
 }
 .emoji-picker-input-container {
   position: absolute;
-  bottom: 100%; /* Posisikan di atas form input */
+  bottom: 100%; 
   left: 0;
   width: 100%;
   z-index: 20;
-  /* Hapus border/shadow default dari library */
   border: none !important; 
   box-shadow: var(--shadow) !important;
 }
@@ -658,11 +620,256 @@
   box-shadow: none !important;
 }
 
-/* Modifikasi SendForm untuk tombol emoji baru */
 .send-form {
   position: relative;
-  z-index: 21; /* Pastikan di atas picker */
+  z-index: 21; 
 }
 .send-form .attach-btn {
-  margin-right: 0; /* Hapus margin kanan */
+  margin-right: 0; 
+}
+
+/* === CSS BARU UNTUK EDIT/HAPUS === */
+
+/* Tombol Opsi (...) pada Bubble */
+.more-btn {
+  position: absolute;
+  top: -12px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: none; 
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 20;
+}
+/* Posisikan di sisi berlawanan dari 'reaction' */
+.message.sent .more-btn {
+  left: -10px;
+}
+.message.received .more-btn {
+  right: -10px;
+}
+.message-bubble-wrapper:hover .more-btn {
+  display: flex; 
+}
+.more-btn:hover {
+  background-color: #f0f4f8;
+  color: var(--text-primary);
+}
+
+/* Menu Pop-up Edit/Hapus */
+.message-menu {
+  position: absolute;
+  top: 24px; 
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  z-index: 30;
+  width: 120px;
+  border: 1px solid var(--border-color);
+}
+.message.sent .message-menu {
+  left: -90px; 
+}
+.message.received .message-menu {
+  right: -90px;
+}
+.message-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+.message-menu button:hover {
+  background-color: var(--bg-color);
+}
+.message-menu button.delete {
+  color: #e53e3e; /* Merah */
+}
+.message-menu button.delete:hover {
+  background-color: #fef2f2; /* Merah muda */
+}
+
+
+/* Form Edit Pesan */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 4px; /* Beri sedikit padding */
+}
+.edit-form input {
+  font-size: 0.95rem;
+  padding: 10px;
+  border: 2px solid var(--primary-color) !important;
+  background: white !important;
+}
+.edit-form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.edit-form button {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+.edit-form button.save {
+  background-color: var(--primary-color);
+  color: white;
+}
+.edit-form button.save:hover {
+  background-color: var(--primary-dark);
+}
+.edit-form button.cancel {
+  background-color: var(--border-color);
+  color: var(--text-secondary);
+}
+.edit-form button.cancel:hover {
+  background-color: #cbd5e0; 
+}
+
+
+/* Status Pesan (Edited/Deleted) */
+.edited-tag {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-left: 6px;
+  font-style: italic;
+}
+.message.sent .edited-tag {
+  color: rgba(255, 255, 255, 0.8);
+}
+.message-text.deleted {
+  font-style: italic;
+  color: var(--text-secondary) !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem !important;
+}
+
+.reply-btn {
+  position: absolute;
+  top: -12px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: none; /* Sembunyi default */
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  z-index: 20;
+  /* Posisikan di sebelah tombol reaksi */
+}
+.message.sent .reply-btn {
+  right: 22px; /* Disesuaikan agar tidak tumpang tindih */
+}
+.message.received .reply-btn {
+  left: 22px; 
+}
+.message-bubble:hover .reply-btn {
+  display: flex; /* Tampilkan saat hover bubble */
+}
+.reply-btn:hover {
+  background-color: #e6fffa;
+  color: var(--primary-dark);
+}
+
+/* Kutipan Balasan di dalam Bubble */
+.reply-quote {
+  background-color: rgba(0, 0, 0, 0.05); /* Sedikit lebih gelap/terang */
+  padding: 8px 12px;
+  margin: -6px -10px 10px -10px; /* Atur margin agar pas */
+  border-left: 3px solid var(--primary-color);
+  border-radius: 4px;
+}
+.message.sent .reply-quote {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-left-color: #fff;
+}
+.reply-quote-sender {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--primary-color);
+}
+.message.sent .reply-quote-sender {
+  color: #fff;
+}
+.reply-quote-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  /* Batasi teks kutipan */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.message.sent .reply-quote-text {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+
+/* Preview Balasan di SendForm */
+.reply-preview {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch; /* Agar garis kiri penuh */
+  padding: 8px 12px 8px 0; /* Hapus padding kiri */
+  background-color: var(--bg-color); 
+  border-top: 1px solid var(--border-color);
+  border-left: 4px solid var(--primary-color); /* Garis kiri */
+  position: relative; /* Untuk tombol X */
+}
+.reply-preview-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 12px; /* Padding setelah garis */
+  overflow: hidden; /* Agar teks tidak keluar */
+}
+.reply-icon {
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+.reply-text {
+  overflow: hidden;
+}
+.reply-sender {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+}
+.reply-snippet {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cancel-reply-btn {
+  background: none;
+  padding: 8px;
+  color: var(--text-secondary);
+  align-self: flex-start; /* Posisikan di atas */
+}
+.cancel-reply-btn:hover {
+  color: var(--text-primary);
 }
