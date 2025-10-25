@@ -23,29 +23,29 @@
 
 /* === BUBBLE CHAT (PERBAIKAN UKURAN) === */
 .message-bubble {
-  max-width: 70%;
-  padding: 12px 16px; /* Kembalikan padding normal */
+  max-width: 100%; /* Perlebar bubble */
+  padding: 10px 14px; /* Sedikit sesuaikan padding */
   border-radius: 18px;
-  word-wrap: break-word; /* Pastikan teks panjang pindah baris */
-  min-width: 50px; /* Tambahkan lebar minimum agar tidak terlalu kecil */
-  display: flex; /* Gunakan flex agar padding internal bekerja baik */
+  word-wrap: break-word;
+  min-width: 50px;
+  display: flex;
   flex-direction: column;
 }
 
 .message-sender { font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; color: var(--primary-color); }
-.message-text { font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; /* Jaga spasi dan baris baru */ }
-.message-time { font-size: 0.75rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: block; align-self: flex-end; /* Dorong waktu ke kanan bawah */ }
+.message-text { font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; }
+.message-time { font-size: 0.75rem; color: var(--text-secondary); text-align: right; margin-top: 4px; display: block; align-self: flex-end; }
 .message.sent { justify-content: flex-end; }
 .message.sent .message-bubble { background-color: var(--primary-color); color: white; border-top-right-radius: 4px; }
 .message.sent .message-time { color: rgba(255, 255, 255, 0.8); }
 .message.received { justify-content: flex-start; }
 .message.received .message-bubble { background-color: #edf2f7; color: var(--text-primary); border-top-left-radius: 4px; }
 
-/* Padding khusus untuk bubble media */
+/* Padding khusus untuk bubble media (tetap kecil) */
 .message-bubble:has(.message-image),
 .message-bubble:has(.message-video),
 .message-bubble:has(.message-file) {
-  padding: 6px; /* Padding lebih kecil jika ada media */
+  padding: 6px;
 }
 /* ======================================= */
 
@@ -57,7 +57,7 @@
 /* Search */
 .search-container { border-bottom: 1px solid var(--border-color); padding: 10px; }
 .search-form { display: flex; }
-.search-form input { background: var(--border-color); border: none; font-size: 0.9rem; padding: 10px; width: 100%; }
+.search-form input { background: var(--border-color); border: none; font-size: 0.9rem; padding: 10px; width: 100%; border-radius: 8px 0 0 8px; /* Perbaikan radius */ }
 .search-form input:focus { background: white; }
 .search-form button { background: var(--border-color); color: var(--text-secondary); padding: 0 12px; border-radius: 0 8px 8px 0; }
 .search-form button:hover { background: var(--primary-color); color: white; }
@@ -66,7 +66,7 @@
 .search-result:hover { background-color: #e6fffa; }
 /* ChatList */
 .no-chats { text-align: center; padding: 20px; color: var(--text-secondary); font-size: 0.9rem; }
-.chat-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; }
+.chat-item { display: flex; align-items: center; gap: 10px; padding: 12px 20px; } /* Sesuaikan gap */
 .chat-info { width: 100%; overflow: hidden; }
 .chat-last-msg { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.85rem; }
 /* Placeholder ChatWindow */
@@ -83,7 +83,7 @@
 .message.sent .message-file { color: white; background-color: rgba(255, 255, 255, 0.2); }
 .message.sent .message-file:hover { background-color: rgba(255, 255, 255, 0.3); }
 /* SendForm Attachments */
-.attach-btn { padding: 10px 12px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; border-radius: 8px; margin-right: 8px; }
+.attach-btn { padding: 10px 12px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer; border-radius: 8px; margin-right: 0px; /* Hapus margin */ background: none; /* Hapus background default */ }
 .attach-btn:hover { background-color: var(--border-color); color: var(--primary-color); }
 .send-form button[type="submit"] { width: 50px; }
 @keyframes spin-btn { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -112,7 +112,7 @@
 .message.received .message-bubble-wrapper { align-items: flex-start; }
 .message-bubble { position: relative; }
 .reaction-btn { position: absolute; top: -12px; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 50%; width: 28px; height: 28px; display: none; align-items: center; justify-content: center; padding: 0; color: var(--text-secondary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 20; }
-.message-bubble:hover .reaction-btn { display: flex; }
+.message-bubble-wrapper:hover .reaction-btn { display: flex; } /* Tampilkan saat hover wrapper */
 .reaction-btn:hover { background-color: #e6fffa; color: var(--primary-dark); }
 .message.sent .reaction-btn { right: -10px; }
 .message.received .reaction-btn { left: -10px; }
@@ -120,7 +120,7 @@
 .message.sent .reaction-picker-popup { right: 0; }
 .message.received .reaction-picker-popup { left: 0; }
 .reaction-picker-popup .emoji-picker-react { border: none !important; box-shadow: none !important; }
-.reactions-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; max-width: 70%; }
+.reactions-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; max-width: 100%; /* Lebarkan agar muat */ }
 .reaction-tag { background-color: #e6fffa; color: var(--primary-dark); padding: 2px 8px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; border: 1px solid var(--primary-color); }
 .message.sent .reactions-container { align-self: flex-end; }
 .message.received .reactions-container { align-self: flex-start; }
@@ -173,7 +173,7 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   z-index: 20;
 }
-.message.sent .reply-btn { left: 22px; } /* Sesuaikan posisi agar tidak tumpang tindih */
+.message.sent .reply-btn { left: 22px; }
 .message.received .reply-btn { right: 22px; }
 .message-bubble-wrapper:hover .reply-btn { display: flex; } /* Tampilkan saat hover wrapper */
 .reply-btn:hover { background-color: #e6fffa; color: var(--primary-dark); }
@@ -182,15 +182,12 @@
 .reply-quote {
   background-color: rgba(0, 0, 0, 0.05);
   padding: 8px 12px;
-  margin-bottom: 8px; /* Jarak ke konten asli */
-  margin-top: -4px; /* Tarik sedikit ke atas */
+  margin-bottom: 8px;
+  margin-top: -4px; /* Tarik sedikit ke atas dari padding bubble normal */
   border-left: 3px solid var(--primary-color);
   border-radius: 4px;
 }
-.message.sent .reply-quote {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-left-color: #fff;
-}
+.message.sent .reply-quote { background-color: rgba(255, 255, 255, 0.15); border-left-color: #fff; }
 .reply-quote-sender { font-weight: 600; font-size: 0.8rem; color: var(--primary-color); }
 .message.sent .reply-quote-sender { color: #fff; }
 .reply-quote-text { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
