@@ -291,3 +291,85 @@
 .forward-modal .modal-footer button {
   width: 100%;
 }
+
+.archive-toggle-container {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+.archive-toggle-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.archive-toggle-btn:hover {
+  background-color: #f7fafc;
+  color: var(--primary-dark);
+}
+.archive-toggle-btn.active {
+   background-color: #e6fffa;
+   color: var(--primary-dark);
+   border-color: var(--primary-color);
+}
+
+
+/* Ikon Pin di Chat Item */
+.pin-icon {
+  color: var(--text-secondary);
+  position: absolute;
+  right: 15px;
+  top: 15px;
+}
+
+/* Style untuk Chat Item yang di-pin */
+.chat-item.pinned {
+  /* Beri sedikit perbedaan background atau border kiri */
+   background-color: #f7fafc; /* Sedikit lebih gelap dari bg biasa */
+}
+.chat-item.pinned.active {
+   background-color: #e6fffa; /* Tetap hijau jika aktif */
+}
+
+
+/* Menu Konteks (Klik Kanan) */
+.context-menu {
+  position: fixed; /* Fixed agar muncul di atas segalanya */
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  z-index: 1001; /* Di atas modal overlay */
+  width: 150px; /* Lebar menu */
+  border: 1px solid var(--border-color);
+}
+
+.context-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 15px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left; /* Ratakan teks ke kiri */
+  color: var(--text-primary);
+}
+.context-menu button:hover {
+  background-color: var(--bg-color);
+}
+.context-menu button svg {
+  color: var(--text-secondary);
+}
+/* Style ikon unpin (X) */
+.unpin-icon {
+   stroke-width: 3; /* Tebalkan ikon X */
+}
