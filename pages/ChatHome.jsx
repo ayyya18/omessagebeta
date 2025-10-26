@@ -18,15 +18,16 @@ import {
   onSnapshot,
   orderBy,
   addDoc,
-  FieldValue, // <-- Pastikan ini di-import
-  arrayUnion, // <-- Import arrayUnion
-  arrayRemove // <-- Import arrayRemove
+  FieldValue,
+  arrayUnion,
+  arrayRemove,
+  writeBatch // <-- Import writeBatch untuk multiple writes
 } from 'firebase/firestore';
 // Import ikon baru
 import {
   FiSearch, FiSend, FiPaperclip, FiLoader, FiFile, FiUser, FiUsers, FiSmile,
   FiMoreVertical, FiEdit2, FiTrash2,
-  FiCornerUpLeft, FiX // <-- Ikon untuk Balas & Batal
+  FiCornerUpLeft, FiX, FiShare // <-- Ikon untuk Forward
 } from 'react-icons/fi';
 
 // IMPORT PICKER
@@ -38,7 +39,6 @@ import CreateGroupModal from '../components/CreateGroupModal';
 
 // ==========================================
 // KONFIGURASI CLOUDINARY
-// (Pastikan ini sudah Anda isi!)
 // ==========================================
 const CLOUDINARY_CLOUD_NAME = "dca2fjndp";
 const CLOUDINARY_UPLOAD_PRESET = "message-app-preset";
@@ -77,7 +77,7 @@ const Search = () => {
 // KOMPONEN DAFTAR CHAT (ChatList)
 // ==========================================
 const ChatList = () => {
-  const [chats, setChats] = useState([]); const { currentUser } = useAuth(); const { dispatch, data: chatData } = useChat(); useEffect(() => { if (!currentUser?.uid) return; const unsub = onSnapshot(doc(db, "userChats", currentUser.uid), (doc) => { if (doc.exists()) { const chatEntries = Object.entries(doc.data()); const sortedChats = chatEntries.filter(chat => chat[1] && chat[1].date).sort((a, b) => b[1].date - a[1].date); setChats(sortedChats); } }); return () => unsub(); }, [currentUser?.uid]); const handleSelect = (chatInfo) => { if (chatInfo.isGroup) dispatch({ type: "CHANGE_USER", payload: chatInfo }); else dispatch({ type: "CHANGE_USER", payload: chatInfo.userInfo }); }; const renderLastMessage = (msg) => { if (!msg) return "..."; if (msg.isDeleted) return "Pesan telah dihapus"; if (msg.fileType === 'image') return "🖼️ Foto"; if (msg.fileType === 'video') return "📹 Video"; if (msg.fileType === 'raw' || msg.fileType === 'auto') return "📄 File"; if (msg.text) return msg.text; return "..."; }
+  const [chats, setChats] = useState([]); const { currentUser } = useAuth(); const { dispatch, data: chatData } = useChat(); useEffect(() => { if (!currentUser?.uid) return; const unsub = onSnapshot(doc(db, "userChats", currentUser.uid), (doc) => { if (doc.exists()) { const chatEntries = Object.entries(doc.data()); const sortedChats = chatEntries.filter(chat => chat[1] && chat[1].date).sort((a, b) => b[1].date - a[1].date); setChats(sortedChats); } }); return () => unsub(); }, [currentUser?.uid]); const handleSelect = (chatInfo) => { if (chatInfo.isGroup) dispatch({ type: "CHANGE_USER", payload: chatInfo }); else dispatch({ type: "CHANGE_USER", payload: chatInfo.userInfo }); }; const renderLastMessage = (msg) => { if (!msg) return "..."; if (msg.isDeleted) return "Pesan telah dihapus"; if (msg.forwardedFrom) return `Terusan: ${msg.text || (msg.fileType === 'image' ? "🖼️ Foto" : (msg.fileType === 'video' ? "📹 Video" : "📄 File"))}`; if (msg.fileType === 'image') return "🖼️ Foto"; if (msg.fileType === 'video') return "📹 Video"; if (msg.fileType === 'raw' || msg.fileType === 'auto') return "📄 File"; if (msg.text) return msg.text; return "..."; }
   return ( <div className="chat-list"> {chats.length === 0 && <p className="no-chats">Mulai obrolan baru lewat pencarian</p>} {chats.map((chat) => ( <div className={`chat-item ${chat[0] === chatData.chatId ? 'active' : ''}`} key={chat[0]} onClick={() => handleSelect(chat[1])}> <Avatar src={chat[1].userInfo.photoURL} alt={chat[1].userInfo.displayName} isGroup={chat[1].isGroup} /> <div className="chat-info"> <span className="chat-name">{chat[1].userInfo.displayName}</span> <p className="chat-last-msg">{renderLastMessage(chat[1].lastMessage)}</p> </div> </div> ))} </div> );
 };
 
@@ -92,7 +92,7 @@ const Sidebar = () => {
 // ==========================================
 // KOMPONEN DAFTAR PESAN (MessageList)
 // ==========================================
-const MessageList = ({ setReplyingTo }) => {
+const MessageList = ({ setReplyingTo, onForward }) => { // <-- Terima prop onForward
   const [messages, setMessages] = useState([]);
   const { currentUser } = useAuth();
   const { data } = useChat();
@@ -105,20 +105,7 @@ const MessageList = ({ setReplyingTo }) => {
   const menuRef = useRef(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
-
-  useEffect(() => {
-    setReactionPickerMsgId(null); setMenuOpenMsgId(null); setEditingMsgId(null);
-    if (!data.chatId) { setMessages([]); return; }
-    const collectionPath = data.isGroup ? "groups" : "chats";
-    const q = query(collection(db, collectionPath, data.chatId, "messages"), orderBy("createdAt"));
-    const unsub = onSnapshot(q, (querySnapshot) => {
-      const newMessages = [];
-      querySnapshot.forEach((doc) => { newMessages.push({ id: doc.id, ...doc.data() }); });
-      setMessages(newMessages);
-    }, (error) => { console.error("Error fetching messages:", error); });
-    return () => unsub();
-  }, [data.chatId, data.isGroup]);
-
+  useEffect(() => { setReactionPickerMsgId(null); setMenuOpenMsgId(null); setEditingMsgId(null); if (!data.chatId) { setMessages([]); return; } const collectionPath = data.isGroup ? "groups" : "chats"; const q = query(collection(db, collectionPath, data.chatId, "messages"), orderBy("createdAt")); const unsub = onSnapshot(q, (querySnapshot) => { const newMessages = []; querySnapshot.forEach((doc) => { newMessages.push({ id: doc.id, ...doc.data() }); }); setMessages(newMessages); }, (error) => { console.error("Error fetching messages:", error); }); return () => unsub(); }, [data.chatId, data.isGroup]);
   useEffect(() => { const handleClickOutside = (event) => { if (menuRef.current && !menuRef.current.contains(event.target)) setMenuOpenMsgId(null); }; document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [menuRef]);
 
   const updateLastMessageForAll = async (lastMessageData) => { if (!data.chatId) return; try { if (data.isGroup) { const groupDoc = await getDoc(doc(db, "groups", data.chatId)); if (!groupDoc.exists()) return; const members = groupDoc.data().members || []; for (const uid of members) { await updateDoc(doc(db, "userChats", uid), { [data.chatId + ".lastMessage"]: lastMessageData, [data.chatId + ".date"]: serverTimestamp(), }); } } else { await updateDoc(doc(db, "userChats", currentUser.uid), { [data.chatId + ".lastMessage"]: lastMessageData, [data.chatId + ".date"]: serverTimestamp(), }); if (data.user?.uid) { await updateDoc(doc(db, "userChats", data.user.uid), { [data.chatId + ".lastMessage"]: lastMessageData, [data.chatId + ".date"]: serverTimestamp(), }); } } } catch(err) { console.error("Gagal update lastMessage: ", err); } };
@@ -126,64 +113,61 @@ const MessageList = ({ setReplyingTo }) => {
   const openEditMode = (msg) => { setEditingMsgId(msg.id); setEditingText(msg.text); setMenuOpenMsgId(null); };
   const handleSaveEdit = async (msg) => { if (editingText.trim() === '') return; const collectionPath = data.isGroup ? "groups" : "chats"; const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id); try { await updateDoc(msgRef, { text: editingText, isEdited: true, editedAt: serverTimestamp() }); await updateLastMessageForAll({ text: editingText, fileType: msg.fileType }); } catch (err) { console.error("Gagal mengedit pesan:", err); } setEditingMsgId(null); setEditingText(""); };
   const MessageEditor = ({ msg }) => ( <form className="edit-form" onSubmit={(e) => { e.preventDefault(); handleSaveEdit(msg); }}> <input type="text" value={editingText} onChange={(e) => setEditingText(e.target.value)} autoFocus onBlur={() => setEditingMsgId(null)} /> <div className="edit-form-buttons"> <button type="button" className="cancel" onClick={() => setEditingMsgId(null)}>Batal</button> <button type="submit" className="save">Simpan</button> </div> </form> );
-
-  // --- PERBAIKAN: Fungsi Reaksi menggunakan arrayUnion/Remove ---
-  const handleReaction = async (emoji, msg) => {
-    const collectionPath = data.isGroup ? "groups" : "chats";
-    const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id);
-    const reactionKey = `reactions.${emoji.emoji}`; // Buat key dinamis
-
-    try {
-      const docSnap = await getDoc(msgRef);
-      if (!docSnap.exists() || docSnap.data().isDeleted) return;
-
-      const reactions = docSnap.data().reactions || {};
-      const userList = reactions[emoji.emoji] || [];
-
-      if (userList.includes(currentUser.uid)) {
-        // Hapus reaksi menggunakan arrayRemove
-        await updateDoc(msgRef, {
-          [reactionKey]: arrayRemove(currentUser.uid)
-        });
-
-        // Cek jika array jadi kosong setelah update (opsional, bisa dengan cloud function)
-        const updatedSnap = await getDoc(msgRef); // Baca lagi setelah update
-        const updatedReactions = updatedSnap.data().reactions || {};
-        const updatedList = updatedReactions[emoji.emoji];
-        if (updatedList && updatedList.length === 0) {
-           // Hapus field emoji jika array kosong
-           await updateDoc(msgRef, {
-               [reactionKey]: FieldValue.delete()
-           });
-        }
-      } else {
-        // Tambah reaksi menggunakan arrayUnion
-        await updateDoc(msgRef, {
-          [reactionKey]: arrayUnion(currentUser.uid)
-        });
-      }
-
-    } catch (err) { console.error("Gagal menambah/menghapus reaksi: ", err); }
-    setReactionPickerMsgId(null);
-  };
-  // ----------------------------------------------------------------
-
+  const handleReaction = async (emojiObject, msg) => { const emoji = emojiObject.emoji; const collectionPath = data.isGroup ? "groups" : "chats"; const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id); const reactionKey = `reactions.${emoji}`; try { const docSnap = await getDoc(msgRef); if (!docSnap.exists() || docSnap.data().isDeleted) return; const reactions = docSnap.data().reactions || {}; const userList = reactions[emoji] || []; if (userList.includes(currentUser.uid)) { await updateDoc(msgRef, { [reactionKey]: arrayRemove(currentUser.uid) }); const updatedSnap = await getDoc(msgRef); const updatedReactions = updatedSnap.data()?.reactions || {}; const updatedList = updatedReactions[emoji]; if (updatedList && updatedList.length === 0 && updatedReactions.hasOwnProperty(emoji)) { await updateDoc(msgRef, { [reactionKey]: FieldValue.delete() }); } } else { await updateDoc(msgRef, { [reactionKey]: arrayUnion(currentUser.uid) }); } } catch (err) { console.error("Gagal menambah/menghapus reaksi: ", err); } setReactionPickerMsgId(null); };
   const RenderReactions = ({ reactions }) => { if (!reactions || Object.keys(reactions).length === 0) return null; return ( <div className="reactions-container"> {Object.entries(reactions).filter(([emoji, uids]) => uids && uids.length > 0).map(([emoji, uids]) => ( <span key={emoji} className="reaction-tag">{emoji} {uids.length}</span> ))} </div> ); };
   const formatTime = (timestamp) => { if (!timestamp) return 'Baru saja'; const date = timestamp.toDate(); return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }); };
   const handleReply = (msg) => { const replyData = { messageId: msg.id, senderName: msg.senderName || 'User', textSnippet: msg.text ? (msg.text.length > 50 ? msg.text.substring(0, 50) + '...' : msg.text) : (msg.fileName ? `📄 ${msg.fileName}` : (msg.fileType === 'image' ? '🖼️ Foto' : (msg.fileType === 'video' ? '📹 Video' : 'File'))), fileType: msg.fileType }; setReplyingTo(replyData); };
   const ReplyQuote = ({ replyData }) => { if (!replyData) return null; let icon = null; if (replyData.fileType === 'image') icon = "🖼️ "; else if (replyData.fileType === 'video') icon = "📹 "; else if (replyData.fileType === 'raw' || replyData.fileType === 'auto') icon = "📄 "; return ( <div className="reply-quote"> <div className="reply-quote-sender">{replyData.senderName}</div> <div className="reply-quote-text">{icon}{replyData.textSnippet}</div> </div> ); };
-  const MessageContent = ({ msg }) => { if (msg.isDeleted) { return ( <p className="message-text deleted"> <FiTrash2 size={14} /> Pesan ini telah dihapus </p> ); } let originalContent; switch (msg.fileType) { case 'image': originalContent = (<> <img src={msg.fileURL} alt="Kiriman gambar" className="message-image" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; case 'video': originalContent = (<> <video src={msg.fileURL} controls className="message-video" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; case 'raw': case 'auto': originalContent = (<> <a href={msg.fileURL} target="_blank" rel="noopener noreferrer" className="message-file"> <FiFile size={24} /> <span>{msg.fileName || 'File Terlampir'}</span> </a> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; default: originalContent = <p className="message-text">{msg.text}</p>; break; } return ( <> <ReplyQuote replyData={msg.replyingTo} /> {originalContent} </> ); };
+
+  // --- Komponen Forwarded Label ---
+  const ForwardedLabel = ({ forwardedFrom }) => {
+    if (!forwardedFrom) return null;
+    return <div className="forwarded-label"><FiShare size={12} /> Diteruskan dari {forwardedFrom}</div>;
+  };
+
+  // Komponen Konten Pesan (Tambah ForwardedLabel)
+  const MessageContent = ({ msg }) => {
+    if (msg.isDeleted) { return ( <p className="message-text deleted"> <FiTrash2 size={14} /> Pesan ini telah dihapus </p> ); }
+    let originalContent;
+    switch (msg.fileType) {
+      case 'image': originalContent = (<> <img src={msg.fileURL} alt="Kiriman gambar" className="message-image" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break;
+      case 'video': originalContent = (<> <video src={msg.fileURL} controls className="message-video" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break;
+      case 'raw': case 'auto': originalContent = (<> <a href={msg.fileURL} target="_blank" rel="noopener noreferrer" className="message-file"> <FiFile size={24} /> <span>{msg.fileName || 'File Terlampir'}</span> </a> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break;
+      default: originalContent = <p className="message-text">{msg.text}</p>; break;
+    }
+    return (
+      <>
+        {/* Tampilkan label forward jika ada */}
+        <ForwardedLabel forwardedFrom={msg.forwardedFrom} />
+        <ReplyQuote replyData={msg.replyingTo} />
+        {originalContent}
+      </>
+     );
+  };
 
   return (
     <div className="message-list">
       {messages.map((msg) => (
         <div key={msg.id} className={`message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`}>
           <div className="message-bubble-wrapper">
-            {msg.senderId === currentUser.uid && !msg.isDeleted && !editingMsgId && (<button className="more-btn" title="Opsi" onClick={() => setMenuOpenMsgId(msg.id === menuOpenMsgId ? null : msg.id)}><FiMoreVertical /></button>)}
-            {menuOpenMsgId === msg.id && (<div className="message-menu" ref={menuRef}> {msg.text && !msg.fileURL && (<button onClick={() => openEditMode(msg)}><FiEdit2 /> Edit</button>)} <button onClick={() => handleDelete(msg)} className="delete"><FiTrash2 /> Hapus</button> </div>)}
+            {/* Tombol Opsi (...) & Menu (Tambahkan Forward) */}
+            {!msg.isDeleted && !editingMsgId && ( // Tampilkan hanya jika tidak dihapus/diedit
+              <button className="more-btn" title="Opsi" onClick={() => setMenuOpenMsgId(msg.id === menuOpenMsgId ? null : msg.id)}><FiMoreVertical /></button>
+            )}
+            {menuOpenMsgId === msg.id && (
+              <div className="message-menu" ref={menuRef}>
+                {/* Opsi Forward */}
+                <button onClick={() => {onForward(msg); setMenuOpenMsgId(null);}}><FiShare /> Teruskan</button>
+                {/* Opsi Edit (jika milik user & teks) */}
+                {msg.senderId === currentUser.uid && msg.text && !msg.fileURL && (<button onClick={() => openEditMode(msg)}><FiEdit2 /> Edit</button>)}
+                 {/* Opsi Hapus (jika milik user) */}
+                {msg.senderId === currentUser.uid && (<button onClick={() => handleDelete(msg)} className="delete"><FiTrash2 /> Hapus</button>)}
+              </div>
+            )}
+            {/* Bubble & Konten Pesan */}
             <div className="message-bubble">
               {!msg.isDeleted && !editingMsgId && ( <button className="reply-btn" title="Balas" onClick={() => handleReply(msg)}> <FiCornerUpLeft /> </button> )}
-              {!msg.isDeleted && !editingMsgId && ( <button className="reaction-btn" onClick={() => setReactionPickerMsgId(msg.id === reactionPickerMsgId ? null : msg.id)}><FiSmile /></button> )}
+              {!msg.isDeleted && !editingMsgId && ( <button className="reaction-btn" title="Bereaksi" onClick={() => setReactionPickerMsgId(msg.id === reactionPickerMsgId ? null : msg.id)}><FiSmile /></button> )}
               {reactionPickerMsgId === msg.id && ( <div className="reaction-picker-popup"> <Picker onEmojiClick={(emoji) => handleReaction(emoji, msg)} pickerStyle={{ width: '250px', height: '200px' }} disableSearchBar disableSkinTonePicker groupVisibility={{ recently_used: false, smileys_emotion: true, animals_nature: false, food_drink: false, travel_places: false, activities: false, objects: false, symbols: false, flags: false, }} preload /> </div> )}
               {editingMsgId === msg.id ? ( <MessageEditor msg={msg} /> ) : ( <> {data.isGroup && msg.senderId !== currentUser.uid && !msg.isDeleted && (<p className="message-sender">{msg.senderName || 'User'}</p>)} <MessageContent msg={msg} /> <span className="message-time"> {formatTime(msg.createdAt)} {msg.isEdited && !msg.isDeleted && <span className="edited-tag">(edited)</span>} </span> </> )}
             </div>
@@ -260,21 +244,249 @@ const SendForm = ({ replyingTo, setReplyingTo }) => {
 };
 
 // ==========================================
+// --- KOMPONEN BARU: Forward Message Modal ---
+// ==========================================
+const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
+  const [chats, setChats] = useState([]); // Daftar chat user
+  const [selectedChats, setSelectedChats] = useState([]); // Daftar chat tujuan
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { currentUser } = useAuth();
+
+  // Ambil daftar chat user saat modal dibuka
+  useEffect(() => {
+    if (show && currentUser?.uid) {
+      const unsub = onSnapshot(doc(db, "userChats", currentUser.uid), (doc) => {
+        if (doc.exists()) {
+          const chatEntries = Object.entries(doc.data());
+          // Urutkan berdasarkan tanggal terbaru
+          const sortedChats = chatEntries
+            .filter(chat => chat[1] && chat[1].date)
+            .sort((a, b) => b[1].date - a[1].date);
+          setChats(sortedChats);
+        }
+      });
+      return () => unsub();
+    } else {
+      // Reset state saat modal ditutup
+      setChats([]);
+      setSelectedChats([]);
+      setError('');
+    }
+  }, [show, currentUser?.uid]);
+
+  // Handle pemilihan chat tujuan
+  const handleSelectChat = (chatId) => {
+    setSelectedChats(prev =>
+      prev.includes(chatId) ? prev.filter(id => id !== chatId) : [...prev, chatId]
+    );
+  };
+
+  // Helper function updateLastMessage (mirip dengan yang lain)
+  const updateLastMessage = async (targetChatId, targetChatInfo, lastMessageData) => {
+    try {
+      if (targetChatInfo.isGroup) {
+        const groupDoc = await getDoc(doc(db, "groups", targetChatId));
+        if (!groupDoc.exists()) return;
+        const members = groupDoc.data().members || [];
+        for (const uid of members) {
+          await updateDoc(doc(db, "userChats", uid), { [targetChatId + ".lastMessage"]: lastMessageData, [targetChatId + ".date"]: serverTimestamp() });
+        }
+      } else {
+        // Chat 1-on-1, perlu UID penerima
+        const recipientUid = targetChatInfo.userInfo.uid;
+        await updateDoc(doc(db, "userChats", currentUser.uid), { [targetChatId + ".lastMessage"]: lastMessageData, [targetChatId + ".date"]: serverTimestamp() });
+        if (recipientUid) { // Pastikan UID penerima ada
+          await updateDoc(doc(db, "userChats", recipientUid), { [targetChatId + ".lastMessage"]: lastMessageData, [targetChatId + ".date"]: serverTimestamp() });
+        }
+      }
+    } catch (err) {
+      console.error(`Gagal update lastMessage for chat ${targetChatId}: `, err);
+    }
+  };
+
+
+  // Handle pengiriman pesan terusan
+  const handleForward = async () => {
+    if (selectedChats.length === 0 || !messageToForward) return;
+    setIsLoading(true);
+    setError('');
+
+    // Siapkan data pesan baru
+    const forwardedMessageData = {
+      senderId: currentUser.uid,
+      senderName: currentUser.displayName,
+      createdAt: serverTimestamp(),
+      text: messageToForward.text,
+      fileURL: messageToForward.fileURL || null,
+      fileType: messageToForward.fileType || null,
+      fileName: messageToForward.fileName || null,
+      reactions: {}, // Reaksi tidak diteruskan
+      isDeleted: false,
+      isEdited: false,
+      replyingTo: null, // Info balasan tidak diteruskan
+      forwardedFrom: messageToForward.senderName || 'User Tidak Dikenal' // Tambahkan info asal
+    };
+
+    try {
+      // Gunakan batch write untuk efisiensi
+      const batch = writeBatch(db);
+
+      // Iterasi melalui setiap chat tujuan
+      for (const chatId of selectedChats) {
+        const chatInfo = chats.find(chat => chat[0] === chatId)?.[1]; // Ambil info chat dari state 'chats'
+        if (!chatInfo) continue; // Lewati jika info chat tidak ditemukan
+
+        const collectionPath = chatInfo.isGroup ? "groups" : "chats";
+        const messagesColRef = collection(db, collectionPath, chatId, "messages");
+        const newMessageRef = doc(messagesColRef); // Buat ref dokumen baru
+
+        // Tambahkan operasi addDoc ke batch
+        batch.set(newMessageRef, forwardedMessageData);
+
+        // Siapkan update lastMessage (lakukan setelah batch commit)
+      }
+
+      // Commit semua operasi tulis sekaligus
+      await batch.commit();
+
+      // Setelah berhasil commit, update lastMessage untuk setiap chat
+      const lastMessageData = {
+          text: forwardedMessageData.text || (forwardedMessageData.fileName ? `📄 ${forwardedMessageData.fileName}` : (forwardedMessageData.fileType === 'image' ? "🖼️ Foto" : "📹 Video")),
+          fileType: forwardedMessageData.fileType,
+          isDeleted: false,
+          forwardedFrom: forwardedMessageData.forwardedFrom // Tambahkan info forward
+      };
+
+      for (const chatId of selectedChats) {
+           const chatInfo = chats.find(chat => chat[0] === chatId)?.[1];
+           if (chatInfo) {
+              await updateLastMessage(chatId, chatInfo, lastMessageData);
+           }
+      }
+
+
+      setIsLoading(false);
+      onClose(); // Tutup modal
+
+    } catch (err) {
+      console.error("Gagal meneruskan pesan:", err);
+      setError("Gagal meneruskan pesan. Silakan coba lagi.");
+      setIsLoading(false);
+    }
+  };
+
+  if (!show || !messageToForward) return null;
+
+  // Render konten pesan yang akan diteruskan (mirip MessageContent)
+  const renderForwardPreview = (msg) => {
+    let content;
+    switch (msg.fileType) {
+      case 'image': content = (<> <img src={msg.fileURL} alt="Preview" className="message-image small-preview" /> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break;
+      case 'video': content = (<> <video src={msg.fileURL} className="message-video small-preview" /> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break;
+      case 'raw': case 'auto': content = (<> <div className="message-file small-preview"> <FiFile size={18} /> <span>{msg.fileName || 'File'}</span> </div> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break;
+      default: content = <p className="message-text small-preview">{msg.text}</p>; break;
+    }
+    return <div className="forward-preview-bubble">{content}</div>;
+  };
+
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content forward-modal"> {/* Tambah class forward-modal */}
+        <div className="modal-header">
+          <h3>Teruskan Pesan Ke...</h3>
+          <button onClick={onClose} className="modal-close-btn"><FiX /></button>
+        </div>
+
+        <div className="modal-body">
+          {/* Preview Pesan */}
+          <div className="forward-message-preview">
+            <p>Pesan dari: {messageToForward.senderName || 'User'}</p>
+            {renderForwardPreview(messageToForward)}
+          </div>
+
+          <hr className="divider" />
+
+          {/* Daftar Chat Tujuan */}
+          <label className="forward-label">Pilih Tujuan:</label>
+          <div className="forward-chat-list">
+            {chats.length === 0 && <p className="no-chats">Tidak ada obrolan.</p>}
+            {chats.map(([chatId, chatInfo]) => (
+              <div
+                key={chatId}
+                className={`forward-chat-item ${selectedChats.includes(chatId) ? 'selected' : ''}`}
+                onClick={() => handleSelectChat(chatId)}
+              >
+                <Avatar
+                  src={chatInfo.userInfo.photoURL}
+                  alt={chatInfo.userInfo.displayName}
+                  size={40}
+                  isGroup={chatInfo.isGroup}
+                />
+                <span className="forward-chat-name">{chatInfo.userInfo.displayName}</span>
+                {/* Checkbox visual */}
+                <div className={`checkbox ${selectedChats.includes(chatId) ? 'checked' : ''}`}></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="modal-footer">
+          {error && <p className="error-message">{error}</p>}
+          <button
+            onClick={handleForward}
+            className="primary"
+            disabled={isLoading || selectedChats.length === 0}
+          >
+            {isLoading ? <FiLoader className="loading-spinner-btn" /> : `Kirim ke ${selectedChats.length} tujuan`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// ==========================================
+
+
+// ==========================================
 // KOMPONEN CHAT WINDOW
+// (MODIFIKASI: Tambah state & modal forward)
 // ==========================================
 const ChatWindow = () => {
   const { data } = useChat();
   const [replyingTo, setReplyingTo] = useState(null);
+  // --- State Baru untuk Forward ---
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [messageToForward, setMessageToForward] = useState(null);
+  // ---------------------------------
 
-  useEffect(() => { setReplyingTo(null); }, [data.chatId]);
+  useEffect(() => { setReplyingTo(null); setMessageToForward(null); setShowForwardModal(false); }, [data.chatId]);
+
+  // --- Fungsi Baru: Membuka Modal Forward ---
+  const handleOpenForwardModal = (message) => {
+    setMessageToForward(message);
+    setShowForwardModal(true);
+  };
+  // -----------------------------------------
 
   if (!data.chatId) { return ( <div className="chat-window placeholder"> <div className="placeholder-content"> <FiSend size={50} /> <h2>Selamat Datang!</h2> <p>Pilih obrolan atau buat grup baru untuk memulai.</p> </div> </div> ); }
   return (
-    <div className="chat-window">
-      <div className="chat-header"> <Avatar src={data.user?.photoURL} alt={data.user?.displayName || 'C'} size={40} isGroup={data.isGroup} /> <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3> </div>
-      <MessageList setReplyingTo={setReplyingTo} />
-      <SendForm replyingTo={replyingTo} setReplyingTo={setReplyingTo} />
-    </div>
+    <>
+      <div className="chat-window">
+        <div className="chat-header"> <Avatar src={data.user?.photoURL} alt={data.user?.displayName || 'C'} size={40} isGroup={data.isGroup} /> <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3> </div>
+        {/* Oper fungsi onForward ke MessageList */}
+        <MessageList setReplyingTo={setReplyingTo} onForward={handleOpenForwardModal} />
+        <SendForm replyingTo={replyingTo} setReplyingTo={setReplyingTo} />
+      </div>
+
+      {/* Render Modal Forward */}
+      <ForwardMessageModal
+        show={showForwardModal}
+        onClose={() => setShowForwardModal(false)}
+        messageToForward={messageToForward}
+      />
+    </>
   );
 };
 

@@ -154,47 +154,18 @@
 .message.sent .edited-tag { color: rgba(255, 255, 255, 0.8); }
 .message-text.deleted { font-style: italic; color: var(--text-secondary) !important; display: flex; align-items: center; gap: 6px; font-size: 0.9rem !important; }
 
-/* === CSS BARU UNTUK BALAS PESAN === */
-
-/* Tombol Balas pada Bubble */
-.reply-btn {
-  position: absolute;
-  top: -12px;
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  display: none; /* Sembunyi default */
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  color: var(--text-secondary);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  z-index: 20;
-}
+/* Balas Pesan */
+.reply-btn { position: absolute; top: -12px; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 50%; width: 28px; height: 28px; display: none; align-items: center; justify-content: center; padding: 0; color: var(--text-secondary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 20; }
 .message.sent .reply-btn { left: 22px; }
 .message.received .reply-btn { right: 22px; }
-.message-bubble-wrapper:hover .reply-btn { display: flex; } /* Tampilkan saat hover wrapper */
+.message-bubble-wrapper:hover .reply-btn { display: flex; }
 .reply-btn:hover { background-color: #e6fffa; color: var(--primary-dark); }
-
-/* Kutipan Balasan di dalam Bubble */
-.reply-quote {
-  background-color: rgba(0, 0, 0, 0.05);
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  margin-top: -4px; /* Tarik sedikit ke atas dari padding bubble normal */
-  border-left: 3px solid var(--primary-color);
-  border-radius: 4px;
-}
+.reply-quote { background-color: rgba(0, 0, 0, 0.05); padding: 8px 12px; margin-bottom: 8px; margin-top: -4px; border-left: 3px solid var(--primary-color); border-radius: 4px; }
 .message.sent .reply-quote { background-color: rgba(255, 255, 255, 0.15); border-left-color: #fff; }
 .reply-quote-sender { font-weight: 600; font-size: 0.8rem; color: var(--primary-color); }
 .message.sent .reply-quote-sender { color: #fff; }
 .reply-quote-text { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .message.sent .reply-quote-text { color: rgba(255, 255, 255, 0.9); }
-
-
-/* Preview Balasan di SendForm */
 .reply-preview { display: flex; justify-content: space-between; align-items: stretch; padding: 8px 12px 8px 0; background-color: var(--bg-color); border-top: 1px solid var(--border-color); border-left: 4px solid var(--primary-color); position: relative; }
 .reply-preview-content { display: flex; align-items: center; gap: 8px; padding-left: 12px; overflow: hidden; }
 .reply-icon { color: var(--primary-color); flex-shrink: 0; }
@@ -203,3 +174,120 @@
 .reply-snippet { font-size: 0.85rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cancel-reply-btn { background: none; border: none; padding: 8px; color: var(--text-secondary); align-self: flex-start; cursor: pointer; }
 .cancel-reply-btn:hover { color: var(--text-primary); }
+
+/* === CSS BARU UNTUK FORWARD MESSAGE === */
+
+/* Label Forward di Bubble */
+.forwarded-label {
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.message.sent .forwarded-label {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Modal Forward */
+.modal-content.forward-modal {
+  max-width: 400px; /* Lebih kecil dari modal profil */
+}
+.forward-message-preview {
+  background-color: var(--bg-color);
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 10px;
+}
+.forward-message-preview p {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.forward-preview-bubble {
+  max-width: 90%;
+  margin-left: auto; /* Posisikan seperti pesan terkirim */
+  margin-right: auto;
+}
+/* Style preview agar mirip bubble tapi lebih kecil */
+.forward-preview-bubble .message-text,
+.forward-preview-bubble .message-text.caption {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.forward-preview-bubble .message-image.small-preview,
+.forward-preview-bubble .message-video.small-preview {
+  max-width: 150px;
+  border-radius: 8px;
+}
+.forward-preview-bubble .message-file.small-preview {
+  padding: 8px;
+  max-width: 200px;
+}
+.forward-preview-bubble .message-file.small-preview span {
+  font-size: 0.8rem;
+}
+
+.forward-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.forward-chat-list {
+  max-height: 250px; /* Batasi tinggi daftar chat */
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.forward-chat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.2s;
+}
+.forward-chat-item:last-child {
+  border-bottom: none;
+}
+.forward-chat-item:hover {
+  background-color: #f7fafc;
+}
+.forward-chat-item.selected {
+  background-color: #e6fffa;
+}
+.forward-chat-name {
+  flex: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Checkbox visual */
+.checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  background-color: white;
+  transition: all 0.2s;
+}
+.forward-chat-item.selected .checkbox {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  /* Tambahkan tanda centang (opsional) */
+  /* background-image: url('data:image/svg+xml,...'); */
+}
+
+.forward-modal .modal-footer button {
+  width: 100%;
+}
