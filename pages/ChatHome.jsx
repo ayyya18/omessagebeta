@@ -369,7 +369,7 @@ const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
         const messagesColRef = collection(db, collectionPath, chatId, "messages");
         const newMessageRef = doc(messagesColRef);
         batch.set(newMessageRef, forwardedMessageData);
-        const lastMessageData = { text: forwardedMessageData.text || (forwardedMessageData.fileName ? `📄 ${forwardedMessageData.fileName}` : (forwardedMessageData.fileType === 'image' ? "🖼️ Foto" : "📹 Video")), fileType: forwardedMessageData.fileType, isDeleted: false, forwardedFrom: forwardedMessageData.forwardedFrom };
+        const lastMessageData = { text: forwardedMessageData.text || (forwardMessageData.fileName ? `📄 ${forwardMessageData.fileName}` : (forwardMessageData.fileType === 'image' ? "🖼️ Foto" : "📹 Video")), fileType: forwardedMessageData.fileType, isDeleted: false, forwardedFrom: forwardedMessageData.forwardedFrom };
         updatePromises.push(updateLastMessage(chatId, chatInfo, lastMessageData));
       }
       await batch.commit();
@@ -449,12 +449,20 @@ const ChatWindow = () => {
   const handleTogglePin = async () => {
     if (!data.chatId || !currentUser?.uid) return;
     const userChatRef = doc(db, 'userChats', currentUser.uid);
+    const newPinnedStatus = !data.isPinned;
     try {
       await updateDoc(userChatRef, {
-        [`${data.chatId}.isPinned`]: !data.isPinned // Toggle nilai dari context
+        [`${data.chatId}.isPinned`]: newPinnedStatus // Toggle nilai dari context
       });
       // Perbarui context secara lokal agar UI update instan
-      dispatch({ type: "CHANGE_USER", payload: { ...data, ...data.user, isPinned: !data.isPinned, userInfo: data.user } });
+      // Kita perlu membuat payload yang benar yang akan diterima oleh reducer
+      const newPayload = {
+         userInfo: data.user,
+         isGroup: data.isGroup,
+         isPinned: newPinnedStatus, // Status baru
+         isArchived: data.isArchived // Status lama (tidak berubah)
+      };
+      dispatch({ type: "CHANGE_USER", payload: newPayload });
     } catch (error) {
       console.error("Error toggling pin:", error);
     }

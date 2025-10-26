@@ -355,34 +355,7 @@
 /* --- CSS LAMA YANG DIHAPUS (DIGANTI) --- */
 /*
 .context-menu {
-  position: fixed; 
-  background-color: var(--card-bg);
-  border-radius: 8px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  z-index: 1001;
-  width: 150px; 
-  border: 1px solid var(--border-color);
-}
-.context-menu button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 15px;
-  background: none;
-  border: none;
-  border-radius: 0;
-  font-size: 0.9rem;
-  font-weight: 500;
-  text-align: left;
-  color: var(--text-primary);
-}
-.context-menu button:hover {
-  background-color: var(--bg-color);
-}
-.context-menu button svg {
-  color: var(--text-secondary);
+  ...
 }
 */
 
