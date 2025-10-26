@@ -19,6 +19,8 @@ import {
   orderBy,
   addDoc,
   FieldValue, // <-- Pastikan ini di-import
+  arrayUnion, // <-- Import arrayUnion
+  arrayRemove // <-- Import arrayRemove
 } from 'firebase/firestore';
 // Import ikon baru
 import {
@@ -45,11 +47,11 @@ const CLOUDINARY_UPLOAD_PRESET = "message-app-preset";
 const Avatar = ({ src, alt, size = 44, isGroup = false }) => {
   const placeholder = isGroup ?
     <FiUsers size={size * 0.6} /> :
-    (alt?.[0]?.toUpperCase() || '?'); // Perbaikan: handle alt kosong & uppercase
+    (alt?.[0]?.toUpperCase() || '?');
   return (
     <div className="avatar-container" style={{ width: `${size}px`, height: `${size}px` }}>
       {src ? (
-        <img src={src} alt={alt || 'Avatar'} className="avatar-img" /> // Tambah alt default
+        <img src={src} alt={alt || 'Avatar'} className="avatar-img" />
       ) : (
         <div className="avatar-placeholder">{placeholder}</div>
       )}
@@ -90,7 +92,7 @@ const Sidebar = () => {
 // ==========================================
 // KOMPONEN DAFTAR PESAN (MessageList)
 // ==========================================
-const MessageList = ({ setReplyingTo }) => { // <-- Terima prop setReplyingTo
+const MessageList = ({ setReplyingTo }) => {
   const [messages, setMessages] = useState([]);
   const { currentUser } = useAuth();
   const { data } = useChat();
@@ -113,7 +115,7 @@ const MessageList = ({ setReplyingTo }) => { // <-- Terima prop setReplyingTo
       const newMessages = [];
       querySnapshot.forEach((doc) => { newMessages.push({ id: doc.id, ...doc.data() }); });
       setMessages(newMessages);
-    }, (error) => { console.error("Error fetching messages:", error); }); // Error handling
+    }, (error) => { console.error("Error fetching messages:", error); });
     return () => unsub();
   }, [data.chatId, data.isGroup]);
 
@@ -124,49 +126,53 @@ const MessageList = ({ setReplyingTo }) => { // <-- Terima prop setReplyingTo
   const openEditMode = (msg) => { setEditingMsgId(msg.id); setEditingText(msg.text); setMenuOpenMsgId(null); };
   const handleSaveEdit = async (msg) => { if (editingText.trim() === '') return; const collectionPath = data.isGroup ? "groups" : "chats"; const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id); try { await updateDoc(msgRef, { text: editingText, isEdited: true, editedAt: serverTimestamp() }); await updateLastMessageForAll({ text: editingText, fileType: msg.fileType }); } catch (err) { console.error("Gagal mengedit pesan:", err); } setEditingMsgId(null); setEditingText(""); };
   const MessageEditor = ({ msg }) => ( <form className="edit-form" onSubmit={(e) => { e.preventDefault(); handleSaveEdit(msg); }}> <input type="text" value={editingText} onChange={(e) => setEditingText(e.target.value)} autoFocus onBlur={() => setEditingMsgId(null)} /> <div className="edit-form-buttons"> <button type="button" className="cancel" onClick={() => setEditingMsgId(null)}>Batal</button> <button type="submit" className="save">Simpan</button> </div> </form> );
-  const handleReaction = async (emoji, msg) => { const collectionPath = data.isGroup ? "groups" : "chats"; const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id); try { const docSnap = await getDoc(msgRef); if (!docSnap.exists() || docSnap.data().isDeleted) return; const reactionKey = `reactions.${emoji.emoji}`; const reactions = docSnap.data().reactions || {}; const userList = reactions[emoji.emoji] || []; if (userList.includes(currentUser.uid)) { await updateDoc(msgRef, { [reactionKey]: FieldValue.arrayRemove(currentUser.uid) }); const updatedSnap = await getDoc(msgRef); const updatedList = updatedSnap.data().reactions?.[emoji.emoji]; if (updatedList && updatedList.length === 0) { await updateDoc(msgRef, { [`reactions.${emoji.emoji}`]: FieldValue.delete() }); } } else { await updateDoc(msgRef, { [reactionKey]: FieldValue.arrayUnion(currentUser.uid) }); } } catch (err) { console.error("Gagal menambah/menghapus reaksi: ", err); } setReactionPickerMsgId(null); };
+
+  // --- PERBAIKAN: Fungsi Reaksi menggunakan arrayUnion/Remove ---
+  const handleReaction = async (emoji, msg) => {
+    const collectionPath = data.isGroup ? "groups" : "chats";
+    const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id);
+    const reactionKey = `reactions.${emoji.emoji}`; // Buat key dinamis
+
+    try {
+      const docSnap = await getDoc(msgRef);
+      if (!docSnap.exists() || docSnap.data().isDeleted) return;
+
+      const reactions = docSnap.data().reactions || {};
+      const userList = reactions[emoji.emoji] || [];
+
+      if (userList.includes(currentUser.uid)) {
+        // Hapus reaksi menggunakan arrayRemove
+        await updateDoc(msgRef, {
+          [reactionKey]: arrayRemove(currentUser.uid)
+        });
+
+        // Cek jika array jadi kosong setelah update (opsional, bisa dengan cloud function)
+        const updatedSnap = await getDoc(msgRef); // Baca lagi setelah update
+        const updatedReactions = updatedSnap.data().reactions || {};
+        const updatedList = updatedReactions[emoji.emoji];
+        if (updatedList && updatedList.length === 0) {
+           // Hapus field emoji jika array kosong
+           await updateDoc(msgRef, {
+               [reactionKey]: FieldValue.delete()
+           });
+        }
+      } else {
+        // Tambah reaksi menggunakan arrayUnion
+        await updateDoc(msgRef, {
+          [reactionKey]: arrayUnion(currentUser.uid)
+        });
+      }
+
+    } catch (err) { console.error("Gagal menambah/menghapus reaksi: ", err); }
+    setReactionPickerMsgId(null);
+  };
+  // ----------------------------------------------------------------
+
   const RenderReactions = ({ reactions }) => { if (!reactions || Object.keys(reactions).length === 0) return null; return ( <div className="reactions-container"> {Object.entries(reactions).filter(([emoji, uids]) => uids && uids.length > 0).map(([emoji, uids]) => ( <span key={emoji} className="reaction-tag">{emoji} {uids.length}</span> ))} </div> ); };
   const formatTime = (timestamp) => { if (!timestamp) return 'Baru saja'; const date = timestamp.toDate(); return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }); };
-
-  // --- Fungsi Balas ---
-  const handleReply = (msg) => {
-    const replyData = {
-      messageId: msg.id,
-      senderName: msg.senderName || 'User',
-      textSnippet: msg.text ? (msg.text.length > 50 ? msg.text.substring(0, 50) + '...' : msg.text)
-                  : (msg.fileName ? `📄 ${msg.fileName}` : (msg.fileType === 'image' ? '🖼️ Foto' : (msg.fileType === 'video' ? '📹 Video' : 'File'))),
-      fileType: msg.fileType
-    };
-    setReplyingTo(replyData); // Panggil fungsi setter dari prop
-  };
-
-  // --- Komponen Kutipan Balasan ---
-  const ReplyQuote = ({ replyData }) => {
-    if (!replyData) return null;
-    let icon = null;
-    if (replyData.fileType === 'image') icon = "🖼️ ";
-    else if (replyData.fileType === 'video') icon = "📹 ";
-    else if (replyData.fileType === 'raw' || replyData.fileType === 'auto') icon = "📄 ";
-    return (
-      <div className="reply-quote">
-        <div className="reply-quote-sender">{replyData.senderName}</div>
-        <div className="reply-quote-text">{icon}{replyData.textSnippet}</div>
-      </div>
-    );
-  };
-
-  // Komponen Konten Pesan (Dengan Kutipan Balasan)
-  const MessageContent = ({ msg }) => {
-    if (msg.isDeleted) { return ( <p className="message-text deleted"> <FiTrash2 size={14} /> Pesan ini telah dihapus </p> ); }
-    let originalContent;
-    switch (msg.fileType) {
-      case 'image': originalContent = (<> <img src={msg.fileURL} alt="Kiriman gambar" className="message-image" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break;
-      case 'video': originalContent = (<> <video src={msg.fileURL} controls className="message-video" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break;
-      case 'raw': case 'auto': originalContent = (<> <a href={msg.fileURL} target="_blank" rel="noopener noreferrer" className="message-file"> <FiFile size={24} /> <span>{msg.fileName || 'File Terlampir'}</span> </a> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break;
-      default: originalContent = <p className="message-text">{msg.text}</p>; break;
-    }
-    return ( <> <ReplyQuote replyData={msg.replyingTo} /> {originalContent} </> );
-  };
+  const handleReply = (msg) => { const replyData = { messageId: msg.id, senderName: msg.senderName || 'User', textSnippet: msg.text ? (msg.text.length > 50 ? msg.text.substring(0, 50) + '...' : msg.text) : (msg.fileName ? `📄 ${msg.fileName}` : (msg.fileType === 'image' ? '🖼️ Foto' : (msg.fileType === 'video' ? '📹 Video' : 'File'))), fileType: msg.fileType }; setReplyingTo(replyData); };
+  const ReplyQuote = ({ replyData }) => { if (!replyData) return null; let icon = null; if (replyData.fileType === 'image') icon = "🖼️ "; else if (replyData.fileType === 'video') icon = "📹 "; else if (replyData.fileType === 'raw' || replyData.fileType === 'auto') icon = "📄 "; return ( <div className="reply-quote"> <div className="reply-quote-sender">{replyData.senderName}</div> <div className="reply-quote-text">{icon}{replyData.textSnippet}</div> </div> ); };
+  const MessageContent = ({ msg }) => { if (msg.isDeleted) { return ( <p className="message-text deleted"> <FiTrash2 size={14} /> Pesan ini telah dihapus </p> ); } let originalContent; switch (msg.fileType) { case 'image': originalContent = (<> <img src={msg.fileURL} alt="Kiriman gambar" className="message-image" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; case 'video': originalContent = (<> <video src={msg.fileURL} controls className="message-video" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; case 'raw': case 'auto': originalContent = (<> <a href={msg.fileURL} target="_blank" rel="noopener noreferrer" className="message-file"> <FiFile size={24} /> <span>{msg.fileName || 'File Terlampir'}</span> </a> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; default: originalContent = <p className="message-text">{msg.text}</p>; break; } return ( <> <ReplyQuote replyData={msg.replyingTo} /> {originalContent} </> ); };
 
   return (
     <div className="message-list">
@@ -176,9 +182,7 @@ const MessageList = ({ setReplyingTo }) => { // <-- Terima prop setReplyingTo
             {msg.senderId === currentUser.uid && !msg.isDeleted && !editingMsgId && (<button className="more-btn" title="Opsi" onClick={() => setMenuOpenMsgId(msg.id === menuOpenMsgId ? null : msg.id)}><FiMoreVertical /></button>)}
             {menuOpenMsgId === msg.id && (<div className="message-menu" ref={menuRef}> {msg.text && !msg.fileURL && (<button onClick={() => openEditMode(msg)}><FiEdit2 /> Edit</button>)} <button onClick={() => handleDelete(msg)} className="delete"><FiTrash2 /> Hapus</button> </div>)}
             <div className="message-bubble">
-              {/* Tombol Balas Baru */}
               {!msg.isDeleted && !editingMsgId && ( <button className="reply-btn" title="Balas" onClick={() => handleReply(msg)}> <FiCornerUpLeft /> </button> )}
-              {/* Tombol Reaksi */}
               {!msg.isDeleted && !editingMsgId && ( <button className="reaction-btn" onClick={() => setReactionPickerMsgId(msg.id === reactionPickerMsgId ? null : msg.id)}><FiSmile /></button> )}
               {reactionPickerMsgId === msg.id && ( <div className="reaction-picker-popup"> <Picker onEmojiClick={(emoji) => handleReaction(emoji, msg)} pickerStyle={{ width: '250px', height: '200px' }} disableSearchBar disableSkinTonePicker groupVisibility={{ recently_used: false, smileys_emotion: true, animals_nature: false, food_drink: false, travel_places: false, activities: false, objects: false, symbols: false, flags: false, }} preload /> </div> )}
               {editingMsgId === msg.id ? ( <MessageEditor msg={msg} /> ) : ( <> {data.isGroup && msg.senderId !== currentUser.uid && !msg.isDeleted && (<p className="message-sender">{msg.senderName || 'User'}</p>)} <MessageContent msg={msg} /> <span className="message-time"> {formatTime(msg.createdAt)} {msg.isEdited && !msg.isDeleted && <span className="edited-tag">(edited)</span>} </span> </> )}
@@ -196,7 +200,7 @@ const MessageList = ({ setReplyingTo }) => { // <-- Terima prop setReplyingTo
 // ==========================================
 // KOMPONEN FORM KIRIM (SendForm)
 // ==========================================
-const SendForm = ({ replyingTo, setReplyingTo }) => { // <-- Terima props
+const SendForm = ({ replyingTo, setReplyingTo }) => {
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -225,48 +229,18 @@ const SendForm = ({ replyingTo, setReplyingTo }) => { // <-- Terima props
       else { setIsUploading(false); alert("Gagal mengupload file."); return; }
     }
     const collectionPath = data.isGroup ? "groups" : "chats";
-    const messageData = {
-      senderId: currentUser.uid,
-      senderName: currentUser.displayName,
-      createdAt: serverTimestamp(),
-      text: text,
-      fileURL: fileURL, fileType: fileType, fileName: fileName,
-      reactions: {},
-      isDeleted: false,
-      isEdited: false,
-      replyingTo: replyingTo // <-- Tambahkan data balasan
-    };
+    const messageData = { senderId: currentUser.uid, senderName: currentUser.displayName, createdAt: serverTimestamp(), text: text, fileURL: fileURL, fileType: fileType, fileName: fileName, reactions: {}, isDeleted: false, isEdited: false, replyingTo: replyingTo };
     try {
       await addDoc(collection(db, collectionPath, data.chatId, "messages"), messageData);
       const lastMessageData = { text: text || (fileName ? `📄 ${fileName}` : (fileType === 'image' ? "🖼️ Foto" : "📹 Video")), fileType: fileType, isDeleted: false };
       await updateLastMessageForAll(lastMessageData);
     } catch (err) { console.error("Error mengirim pesan: ", err); }
-    setText(''); setFile(null);
-    setReplyingTo(null); // <-- Reset state balasan
+    setText(''); setFile(null); setReplyingTo(null);
     if (document.getElementById('file-upload')) document.getElementById('file-upload').value = null;
     setIsUploading(false);
   };
 
-  // Komponen Preview Balasan
-  const ReplyPreview = () => {
-    if (!replyingTo) return null;
-    let icon = null;
-    if (replyingTo.fileType === 'image') icon = "🖼️ ";
-    else if (replyingTo.fileType === 'video') icon = "📹 ";
-    else if (replyingTo.fileType === 'raw' || replyingTo.fileType === 'auto') icon = "📄 ";
-    return (
-      <div className="reply-preview">
-        <div className="reply-preview-content">
-          <FiCornerUpLeft className="reply-icon" />
-          <div className="reply-text">
-            <div className="reply-sender">Membalas kepada {replyingTo.senderName}</div>
-            <div className="reply-snippet">{icon}{replyingTo.textSnippet}</div>
-          </div>
-        </div>
-        <button onClick={() => setReplyingTo(null)} className="cancel-reply-btn"><FiX /></button>
-      </div>
-    );
-  };
+  const ReplyPreview = () => { if (!replyingTo) return null; let icon = null; if (replyingTo.fileType === 'image') icon = "🖼️ "; else if (replyingTo.fileType === 'video') icon = "📹 "; else if (replyingTo.fileType === 'raw' || replyingTo.fileType === 'auto') icon = "📄 "; return ( <div className="reply-preview"> <div className="reply-preview-content"> <FiCornerUpLeft className="reply-icon" /> <div className="reply-text"> <div className="reply-sender">Membalas kepada {replyingTo.senderName}</div> <div className="reply-snippet">{icon}{replyingTo.textSnippet}</div> </div> </div> <button onClick={() => setReplyingTo(null)} className="cancel-reply-btn"><FiX /></button> </div> ); };
 
   return (
     <>
@@ -298,7 +272,6 @@ const ChatWindow = () => {
   return (
     <div className="chat-window">
       <div className="chat-header"> <Avatar src={data.user?.photoURL} alt={data.user?.displayName || 'C'} size={40} isGroup={data.isGroup} /> <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3> </div>
-      {/* Oper state & setter */}
       <MessageList setReplyingTo={setReplyingTo} />
       <SendForm replyingTo={replyingTo} setReplyingTo={setReplyingTo} />
     </div>
