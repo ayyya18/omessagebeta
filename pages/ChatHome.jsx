@@ -77,18 +77,26 @@ const Search = () => {
     const combinedId = currentUser.uid > user.uid ? currentUser.uid + user.uid : user.uid + currentUser.uid;
     try {
       const res = await getDoc(doc(db, 'chats', combinedId));
+      let chatInfo; // Variabel untuk menyimpan info chat yang akan dikirim ke context
+      
       // Hanya buat chat baru jika belum ada
       if (!res.exists()) {
         await setDoc(doc(db, 'chats', combinedId), { messages: [] });
-        // Tambahkan isPinned dan isArchived saat membuat chat baru
+        
+        // Buat info untuk user saat ini
+        const currentUserChatInfo = {
+          userInfo: { uid: user.uid, displayName: user.displayName, photoURL: user.photoURL || '' },
+          isGroup: false,
+          date: serverTimestamp(),
+          lastMessage: { text: "" },
+          isPinned: false, // Default false
+          isArchived: false // Default false
+        };
         await updateDoc(doc(db, 'userChats', currentUser.uid), {
-          [combinedId + '.userInfo']: { uid: user.uid, displayName: user.displayName, photoURL: user.photoURL || '' },
-          [combinedId + '.isGroup']: false,
-          [combinedId + '.date']: serverTimestamp(),
-          [combinedId + '.lastMessage']: { text: "" },
-          [combinedId + '.isPinned']: false, // Default false
-          [combinedId + '.isArchived']: false // Default false
+          [combinedId]: currentUserChatInfo
         });
+        
+        // Buat info untuk user lain
         await updateDoc(doc(db, 'userChats', user.uid), {
           [combinedId + '.userInfo']: { uid: currentUser.uid, displayName: currentUser.displayName, photoURL: currentUser.photoURL || '' },
           [combinedId + '.isGroup']: false,
@@ -97,8 +105,23 @@ const Search = () => {
           [combinedId + '.isPinned']: false, // Default false
           [combinedId + '.isArchived']: false // Default false
         });
+        
+        chatInfo = currentUserChatInfo; // Gunakan info yang baru dibuat
+      } else {
+         // Jika chat sudah ada, ambil infonya dari userChats
+         const userChatsDoc = await getDoc(doc(db, "userChats", currentUser.uid));
+         if(userChatsDoc.exists() && userChatsDoc.data()[combinedId]) {
+            chatInfo = userChatsDoc.data()[combinedId];
+         } else {
+            // Fallback jika tidak ada (seharusnya tidak terjadi)
+             chatInfo = {
+                userInfo: { uid: user.uid, displayName: user.displayName, photoURL: user.photoURL || '' },
+                isGroup: false, isPinned: false, isArchived: false
+             };
+         }
       }
-      dispatch({ type: 'CHANGE_USER', payload: user }); // Kirim data user saja
+      
+      dispatch({ type: 'CHANGE_USER', payload: chatInfo }); // Kirim data chatInfo LENGKAP
     } catch (err) { console.error("Gagal membuat/memilih chat:", err); }
     setUser(null); setUsername('');
   };
@@ -106,9 +129,9 @@ const Search = () => {
 };
 
 // ==========================================
-// KOMPONEN DAFTAR CHAT (ChatList) - MODIFIKASI BESAR
+// KOMPONEN DAFTAR CHAT (ChatList) - MODIFIKASI handleSelect
 // ==========================================
-const ChatList = ({ showArchived, onContextMenu }) => { // Terima prop showArchived & onContextMenu
+const ChatList = ({ showArchived }) => { // Hapus prop onContextMenu
   const [allChats, setAllChats] = useState([]); // Simpan semua chat
   const { currentUser } = useAuth();
   const { dispatch, data: chatData } = useChat();
@@ -132,10 +155,9 @@ const ChatList = ({ showArchived, onContextMenu }) => { // Terima prop showArchi
 
   const handleSelect = (chatInfo) => {
     // Pastikan chatInfo dan userInfo ada sebelum dispatch
-    if (chatInfo.isGroup && chatInfo.userInfo) {
+    if (chatInfo && chatInfo.userInfo) {
+      // PERUBAHAN: Selalu kirim chatInfo lengkap
       dispatch({ type: "CHANGE_USER", payload: chatInfo });
-    } else if (!chatInfo.isGroup && chatInfo.userInfo) {
-      dispatch({ type: "CHANGE_USER", payload: chatInfo.userInfo });
     } else {
       console.warn("Invalid chatInfo for selection:", chatInfo);
     }
@@ -160,17 +182,8 @@ const ChatList = ({ showArchived, onContextMenu }) => { // Terima prop showArchi
        const dateB = b.date?.toMillis ? b.date.toMillis() : 0;
        return dateB - dateA; // Tanggal terbaru di atas
     });
-
-  // Fungsi untuk handle klik kanan (atau long press)
-  const handleContextMenu = (event, chatId, chatInfo) => {
-    event.preventDefault(); // Mencegah menu konteks default browser
-    // Pastikan chatInfo valid sebelum memanggil onContextMenu
-    if (chatInfo) {
-       onContextMenu(event, chatId, chatInfo); // Kirim event & data ke parent (Sidebar)
-    } else {
-       console.warn("Attempted context menu on invalid chat:", chatId);
-    }
-  };
+  
+  // HAPUS: handleContextMenu
 
   return (
     <div className="chat-list">
@@ -184,7 +197,7 @@ const ChatList = ({ showArchived, onContextMenu }) => { // Terima prop showArchi
             className={`chat-item ${chatId === chatData.chatId ? 'active' : ''} ${chatInfo.isPinned && !showArchived ? 'pinned' : ''}`} // Tambah class 'pinned'
             key={chatId}
             onClick={() => handleSelect(chatInfo)}
-            onContextMenu={(e) => handleContextMenu(e, chatId, chatInfo)} // Tambahkan event handler
+            // HAPUS: onContextMenu
           >
             {/* Tampilkan ikon pin jika di-pin & tidak di arsip */}
             {chatInfo.isPinned && !showArchived && <FiPin size={14} className="pin-icon" />}
@@ -205,7 +218,7 @@ const ChatList = ({ showArchived, onContextMenu }) => { // Terima prop showArchi
 };
 
 // ==========================================
-// KOMPONEN SIDEBAR - MODIFIKASI BESAR
+// KOMPONEN SIDEBAR - HAPUS LOGIC CONTEXT MENU
 // ==========================================
 const Sidebar = () => {
   const { currentUser } = useAuth();
@@ -214,89 +227,20 @@ const Sidebar = () => {
 
   // --- State Baru untuk Pin/Arsip ---
   const [showArchived, setShowArchived] = useState(false); // Tampilkan daftar arsip?
-  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chatId: null, chatInfo: null });
-  const contextMenuRef = useRef(null);
+  
+  // --- HAPUS SEMUA STATE & REF CONTEXT MENU ---
+  // const [contextMenu, setContextMenu] = useState(...);
+  // const contextMenuRef = useRef(null);
   // ----------------------------------
 
   const handleLogout = () => { signOut(auth); };
 
-  // --- Fungsi Baru untuk Context Menu ---
-  const handleShowContextMenu = (event, chatId, chatInfo) => {
-    // Tutup menu lain jika ada
-    handleCloseContextMenu();
-    // Tampilkan menu baru
-    setContextMenu({
-      visible: true,
-      x: event.clientX,
-      y: event.clientY,
-      chatId: chatId,
-      chatInfo: chatInfo,
-    });
-  };
-
-  const handleCloseContextMenu = () => {
-    setContextMenu({ visible: false, x: 0, y: 0, chatId: null, chatInfo: null });
-  };
-
-  // Efek untuk menutup context menu saat klik di luar
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Pastikan target klik bukan di dalam chat item atau tombol more
-       const targetIsChatItem = event.target.closest('.chat-item');
-       const targetIsMoreButton = event.target.closest('.more-btn'); // Asumsi tombol (...) punya class .more-btn
-
-       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target) && !targetIsChatItem && !targetIsMoreButton) {
-        handleCloseContextMenu();
-      }
-    };
-    if (contextMenu.visible) {
-      document.addEventListener('click', handleClickOutside);
-      // Hapus listener contextmenu agar klik kanan di luar menu tidak langsung menutupnya
-      // document.addEventListener('contextmenu', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-      // document.removeEventListener('contextmenu', handleClickOutside);
-    };
-  }, [contextMenu.visible]);
-
-
-  // --- Fungsi Baru untuk Pin/Unpin ---
-  const handleTogglePin = async () => {
-    if (!contextMenu.chatId || !currentUser?.uid) return;
-    const userChatRef = doc(db, 'userChats', currentUser.uid);
-    const currentlyPinned = contextMenu.chatInfo?.isPinned || false; // Ambil status pin saat ini
-    try {
-      await updateDoc(userChatRef, {
-        [`${contextMenu.chatId}.isPinned`]: !currentlyPinned // Toggle nilai
-      });
-    } catch (error) {
-      console.error("Error toggling pin:", error);
-      alert("Gagal mengubah status pin."); // Beri tahu user jika gagal
-    }
-    handleCloseContextMenu();
-  };
-
-  // --- Fungsi Baru untuk Archive/Unarchive ---
-  const handleToggleArchive = async () => {
-    if (!contextMenu.chatId || !currentUser?.uid) return;
-    const userChatRef = doc(db, 'userChats', currentUser.uid);
-    const currentlyArchived = contextMenu.chatInfo?.isArchived || false; // Ambil status arsip saat ini
-    try {
-      const updates = {
-         [`${contextMenu.chatId}.isArchived`]: !currentlyArchived // Toggle nilai
-      };
-      // Jika mengarsipkan, pastikan juga di-unpin
-      if (!currentlyArchived) {
-          updates[`${contextMenu.chatId}.isPinned`] = false;
-      }
-      await updateDoc(userChatRef, updates);
-    } catch (error) {
-      console.error("Error toggling archive:", error);
-       alert("Gagal mengubah status arsip."); // Beri tahu user jika gagal
-    }
-    handleCloseContextMenu();
-  };
+  // --- HAPUS SEMUA FUNGSI CONTEXT MENU ---
+  // handleShowContextMenu
+  // handleCloseContextMenu
+  // useEffect (handleClickOutside)
+  // handleTogglePin
+  // handleToggleArchive
   // ---------------------------------------
 
   return (
@@ -316,30 +260,12 @@ const Sidebar = () => {
         {/* --------------------------- */}
 
         <Search />
-        {/* Kirim prop showArchived & onContextMenu */}
-        <ChatList showArchived={showArchived} onContextMenu={handleShowContextMenu} />
+        {/* Kirim prop showArchived & HAPUS onContextMenu */}
+        <ChatList showArchived={showArchived} />
       </div>
 
-      {/* --- Render Context Menu --- */}
-      {contextMenu.visible && (
-        <div
-          ref={contextMenuRef}
-          className="context-menu"
-          style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
-        >
-          {/* Opsi Unarchive / Archive */}
-          <button onClick={handleToggleArchive}>
-            {contextMenu.chatInfo?.isArchived ? <><FiInbox size={16}/> Batal Arsip</> : <><FiArchive size={16}/> Arsipkan</>}
-          </button>
-          {/* Opsi Pin / Unpin (hanya jika tidak diarsipkan) */}
-          {!contextMenu.chatInfo?.isArchived && (
-            <button onClick={handleTogglePin}>
-              {contextMenu.chatInfo?.isPinned ? <> <FiX className="unpin-icon" size={16}/> Lepas Pin</> : <><FiPin size={16}/> Pin Obrolan</>}
-            </button>
-          )}
-          {/* Opsi lain bisa ditambah di sini, misal Hapus Chat */}
-        </div>
-      )}
+      {/* --- HAPUS RENDER CONTEXT MENU --- */}
+      {/* {contextMenu.visible && ( ... )} */}
       {/* ------------------------- */}
 
       <ProfileModal show={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
@@ -476,23 +402,130 @@ const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
 
 
 // ==========================================
-// KOMPONEN CHAT WINDOW
+// KOMPONEN CHAT WINDOW - MODIFIKASI BESAR
 // ==========================================
 const ChatWindow = () => {
-  const { data } = useChat();
+  const { data, dispatch } = useChat(); // Ambil data LENGKAP dari context
+  const { currentUser } = useAuth(); // Ambil currentUser
+  
   const [replyingTo, setReplyingTo] = useState(null);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
 
-  useEffect(() => { setReplyingTo(null); setMessageToForward(null); setShowForwardModal(false); }, [data.chatId]);
+  // --- LOGIKA BARU UNTUK MENU HEADER ---
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
+  const headerMenuRef = useRef(null);
+  
+  useEffect(() => {
+    // Reset semua state saat chat berubah
+    setReplyingTo(null);
+    setMessageToForward(null);
+    setShowForwardModal(false);
+    setIsHeaderMenuOpen(false); // <-- Reset menu
+  }, [data.chatId]);
+
+  // Efek untuk menutup menu header saat klik di luar
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Cek apakah klik di luar menu DAN bukan di tombol pembukanya
+      if (
+        headerMenuRef.current && 
+        !headerMenuRef.current.contains(event.target) && 
+        !event.target.closest('.chat-header-more-btn')
+      ) {
+        setIsHeaderMenuOpen(false);
+      }
+    };
+    if (isHeaderMenuOpen) {
+       document.addEventListener('click', handleClickOutside);
+    }
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isHeaderMenuOpen]);
+
 
   const handleOpenForwardModal = (message) => { setMessageToForward(message); setShowForwardModal(true); };
+  
+  // --- FUNGSI BARU (PINDAHAN DARI SIDEBAR) ---
+  const handleTogglePin = async () => {
+    if (!data.chatId || !currentUser?.uid) return;
+    const userChatRef = doc(db, 'userChats', currentUser.uid);
+    try {
+      await updateDoc(userChatRef, {
+        [`${data.chatId}.isPinned`]: !data.isPinned // Toggle nilai dari context
+      });
+      // Perbarui context secara lokal agar UI update instan
+      dispatch({ type: "CHANGE_USER", payload: { ...data, ...data.user, isPinned: !data.isPinned, userInfo: data.user } });
+    } catch (error) {
+      console.error("Error toggling pin:", error);
+    }
+    setIsHeaderMenuOpen(false); // Tutup menu
+  };
+
+  const handleToggleArchive = async () => {
+    if (!data.chatId || !currentUser?.uid) return;
+    const userChatRef = doc(db, 'userChats', currentUser.uid);
+    const newArchivedStatus = !data.isArchived;
+    try {
+      const updates = {
+         [`${data.chatId}.isArchived`]: newArchivedStatus // Toggle nilai dari context
+      };
+      // Jika mengarsipkan, pastikan juga di-unpin
+      if (newArchivedStatus) {
+          updates[`${data.chatId}.isPinned`] = false;
+      }
+      await updateDoc(userChatRef, updates);
+      
+      // Reset context karena chat ini akan hilang dari daftar
+      dispatch({ type: "RESET" }); 
+      
+    } catch (error) {
+      console.error("Error toggling archive:", error);
+    }
+    setIsHeaderMenuOpen(false); // Tutup menu
+  };
+  // ----------------------------------------
+
 
   if (!data.chatId) { return ( <div className="chat-window placeholder"> <div className="placeholder-content"> <FiSend size={50} /> <h2>Selamat Datang!</h2> <p>Pilih obrolan atau buat grup baru untuk memulai.</p> </div> </div> ); }
   return (
     <>
       <div className="chat-window">
-        <div className="chat-header"> <Avatar src={data.user?.photoURL} alt={data.user?.displayName || 'C'} size={40} isGroup={data.isGroup} /> <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3> </div>
+        <div className="chat-header">
+          <Avatar 
+            src={data.user?.photoURL} 
+            alt={data.user?.displayName || 'C'} 
+            size={40} 
+            isGroup={data.isGroup} 
+          />
+          <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3>
+          
+          {/* --- TOMBOL MENU BARU --- */}
+          <div className="chat-header-menu-container">
+            <button
+              className="chat-header-more-btn"
+              onClick={() => setIsHeaderMenuOpen(prev => !prev)}
+              title="Opsi Obrolan"
+            >
+              <FiMoreVertical />
+            </button>
+            {isHeaderMenuOpen && (
+              <div className="chat-header-menu" ref={headerMenuRef}>
+                <button onClick={handleToggleArchive}>
+                  {data.isArchived ? <><FiInbox size={16}/> Batal Arsip</> : <><FiArchive size={16}/> Arsipkan</>}
+                </button>
+                {/* Opsi Pin hanya muncul jika TIDAK diarsipkan */}
+                {!data.isArchived && (
+                  <button onClick={handleTogglePin}>
+                    {data.isPinned ? <> <FiX className="unpin-icon" size={16}/> Lepas Pin</> : <><FiPin size={16}/> Pin Obrolan</>}
+                  </button>
+                )}
+                {/* Tambah tombol lain di sini, misal "Info Kontak" atau "Hapus Chat" */}
+              </div>
+            )}
+          </div>
+          {/* --- AKHIR TOMBOL MENU BARU --- */}
+          
+        </div>
         <MessageList setReplyingTo={setReplyingTo} onForward={handleOpenForwardModal} />
         <SendForm replyingTo={replyingTo} setReplyingTo={setReplyingTo} />
       </div>

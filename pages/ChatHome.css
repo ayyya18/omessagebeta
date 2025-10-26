@@ -9,14 +9,32 @@
 .logout-btn { background: #fef2f2; color: #e53e3e; padding: 6px 10px; font-size: 0.8rem; }
 .logout-btn:hover { background: #e53e3e; color: white; }
 .chat-list { flex: 1; overflow-y: auto; }
-.chat-item { padding: 16px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background-color 0.2s; }
+.chat-item { padding: 16px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: background-color 0.2s; position: relative; /* Diperlukan untuk pin-icon */ }
 .chat-item:hover { background-color: #f0f4f8; }
 .chat-item.active { background-color: #e6fffa; border-right: 3px solid var(--primary-color); }
 .chat-name { font-weight: 600; color: var(--text-primary); }
 .chat-last-msg { font-size: 0.9rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* === CHAT WINDOW === */
 .chat-window { flex: 1; display: flex; flex-direction: column; }
-.chat-header { padding: 20px; border-bottom: 1px solid var(--border-color); background: var(--card-bg); box-shadow: 0 2px 4px rgba(0,0,0,0.02); z-index: 10; }
+.chat-header { 
+    padding: 20px; 
+    border-bottom: 1px solid var(--border-color); 
+    background: var(--card-bg); 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02); 
+    z-index: 10; 
+    /* --- PERUBAHAN UNTUK MENU HEADER --- */
+    display: flex; 
+    align-items: center; 
+    gap: 12px;
+    position: relative; /* Untuk positioning menu dropdown */
+}
+/* --- CSS BARU --- */
+.chat-header h3 {
+    flex: 1; /* Mendorong tombol ke kanan */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 /* === DAFTAR PESAN === */
 .message-list { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
 .message { display: flex; margin-bottom: 12px; }
@@ -105,7 +123,7 @@
 .logout-btn { margin-left: auto; flex-shrink: 0; }
 .search-result { display: flex; align-items: center; gap: 10px; }
 .chat-item { display: flex; align-items: center; gap: 12px; }
-.chat-header { display: flex; align-items: center; gap: 12px; }
+/* .chat-header { display: flex; align-items: center; gap: 12px; } (Sudah di atas) */
 /* Reaksi & Emoji */
 .message-bubble-wrapper { display: flex; flex-direction: column; position: relative; max-width: 100%; }
 .message.sent .message-bubble-wrapper { align-items: flex-end; }
@@ -284,8 +302,6 @@
 .forward-chat-item.selected .checkbox {
   background-color: var(--primary-color);
   border-color: var(--primary-color);
-  /* Tambahkan tanda centang (opsional) */
-  /* background-image: url('data:image/svg+xml,...'); */
 }
 
 .forward-modal .modal-footer button {
@@ -329,26 +345,25 @@
 
 /* Style untuk Chat Item yang di-pin */
 .chat-item.pinned {
-  /* Beri sedikit perbedaan background atau border kiri */
-   background-color: #f7fafc; /* Sedikit lebih gelap dari bg biasa */
+   background-color: #f7fafc; 
 }
 .chat-item.pinned.active {
-   background-color: #e6fffa; /* Tetap hijau jika aktif */
+   background-color: #e6fffa;
 }
 
 
-/* Menu Konteks (Klik Kanan) */
+/* --- CSS LAMA YANG DIHAPUS (DIGANTI) --- */
+/*
 .context-menu {
-  position: fixed; /* Fixed agar muncul di atas segalanya */
+  position: fixed; 
   background-color: var(--card-bg);
   border-radius: 8px;
   box-shadow: var(--shadow);
   overflow: hidden;
-  z-index: 1001; /* Di atas modal overlay */
-  width: 150px; /* Lebar menu */
+  z-index: 1001;
+  width: 150px; 
   border: 1px solid var(--border-color);
 }
-
 .context-menu button {
   display: flex;
   align-items: center;
@@ -360,7 +375,7 @@
   border-radius: 0;
   font-size: 0.9rem;
   font-weight: 500;
-  text-align: left; /* Ratakan teks ke kiri */
+  text-align: left;
   color: var(--text-primary);
 }
 .context-menu button:hover {
@@ -369,7 +384,68 @@
 .context-menu button svg {
   color: var(--text-secondary);
 }
-/* Style ikon unpin (X) */
+*/
+
+/* --- CSS BARU UNTUK MENU HEADER CHAT --- */
+.chat-header-menu-container {
+  position: relative;
+  z-index: 30; /* Pastikan di atas chat-header */
+}
+
+.chat-header-more-btn {
+  background: none;
+  border: none;
+  padding: 8px;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem; /* Perbesar ikon */
+  cursor: pointer;
+}
+.chat-header-more-btn:hover {
+  background-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.chat-header-menu {
+  position: absolute;
+  top: 100%; /* Muncul di bawah tombol */
+  right: 0; /* Rata kanan */
+  background-color: var(--card-bg);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  z-index: 31; /* Di atas menu container */
+  width: 170px; /* Lebarkan sedikit */
+  border: 1px solid var(--border-color);
+  margin-top: 4px;
+}
+
+.chat-header-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 15px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.chat-header-menu button:hover {
+  background-color: var(--bg-color);
+}
+.chat-header-menu button svg {
+  color: var(--text-secondary);
+}
+/* ------------------------------------ */
+
 .unpin-icon {
    stroke-width: 3; /* Tebalkan ikon X */
 }
