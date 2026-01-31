@@ -30,7 +30,7 @@ import {
   FiSearch, FiSend, FiPaperclip, FiLoader, FiFile, FiUser, FiUsers, FiSmile,
   FiMoreVertical, FiEdit2, FiTrash2,
   FiCornerUpLeft, FiX, FiShare,
-  FiArchive, FiInbox, FiPin // <-- Ikon untuk Pin & Arsip
+  FiArchive, FiInbox // <-- Ikon untuk Pin & Arsip
 } from 'react-icons/fi';
 
 // IMPORT PICKER

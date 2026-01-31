@@ -1,4 +1,9 @@
-import { createContext, useContext, useReducer } from "react";
+// src/context/ChatContext.jsx
+import {
+  createContext,
+  useContext,
+  useReducer,
+} from "react";
 import { useAuth } from "./AuthContext";
 
 export const ChatContext = createContext();
@@ -10,14 +15,18 @@ export const ChatContextProvider = ({ children }) => {
     chatId: null,
     user: {},
     isGroup: false,
-    isPinned: false,
-    isArchived: false,
+    isPinned: false, 
+    isArchived: false, 
   };
 
   const chatReducer = (state, action) => {
     switch (action.type) {
       case "CHANGE_USER":
+        // PENTING: Cek apakah currentUser ada sebelum akses uid
+        if (!currentUser) return state;
+
         const payload = action.payload;
+        
         if (payload.isGroup) {
           return {
             user: payload.userInfo,
@@ -28,7 +37,8 @@ export const ChatContextProvider = ({ children }) => {
           };
         } else {
           const userInfo = payload.userInfo;
-          const chatID = currentUser.uid > userInfo.uid
+          // Hitung chatID yang aman
+          const chatID = (currentUser.uid > userInfo.uid)
                 ? currentUser.uid + userInfo.uid
                 : userInfo.uid + currentUser.uid;
 
@@ -40,6 +50,7 @@ export const ChatContextProvider = ({ children }) => {
             isArchived: payload.isArchived || false,
           };
         }
+      
       case "RESET":
         return INITIAL_STATE;
       default:
@@ -56,4 +67,6 @@ export const ChatContextProvider = ({ children }) => {
   );
 };
 
-export const useChat = () => useContext(ChatContext);
+export const useChat = () => {
+  return useContext(ChatContext);
+};
