@@ -17,6 +17,7 @@ import {
   getDoc,
   onSnapshot,
   orderBy,
+  limitToLast,
   addDoc,
   deleteField,
   arrayUnion,
@@ -35,6 +36,9 @@ import {
 
 // IMPORT PICKER
 import Picker from 'emoji-picker-react';
+import ReactionPicker from '../components/ReactionPicker';
+
+import Fuse from 'fuse.js';
 
 // IMPORT MODAL
 import ProfileModal from '../components/ProfileModal';
@@ -67,15 +71,72 @@ const Avatar = ({ src, alt, size = 44, isGroup = false }) => {
 // ==========================================
 // KOMPONEN PENCARIAN (Search) - MODIFIKASI handleSelect
 // ==========================================
-const Search = () => {
+  const RenderReactionsClickable = ({ reactions, msg }) => {
+    if (!reactions || Object.keys(reactions).length === 0) return null;
+    return (
+      <div className="reactions-container">
+        {Object.entries(reactions)
+          .filter(([emoji, uids]) => uids && uids.length > 0)
+          .map(([emoji, uids]) => (
+            <span
+              key={emoji}
+              className={`reaction-tag ${uids.includes(currentUser.uid) ? 'active' : ''}`}
+              role="button"
+              title={`${uids.length} reaksi`}
+            >
+              {emoji} {uids.length}
+            </span>
+          ))}
+      </div>
+    );
+  };
   const [username, setUsername] = useState('');
   const [user, setUser] = useState(null);
   const [err, setErr] = useState(false);
+  const [friends, setFriends] = useState([]);
   const { currentUser } = useAuth();
   const { dispatch } = useChat();
-  const handleSearch = async (e) => { e.preventDefault(); if (!username.trim()) return; const q = query(collection(db, 'users'), where('displayName', '==', username.trim())); try { const querySnapshot = await getDocs(q); if (querySnapshot.empty) { setErr(true); setUser(null); } else { querySnapshot.forEach((doc) => { if (doc.data().uid !== currentUser.uid) setUser(doc.data()); else setUser(null); }); setErr(false); } } catch (err) { console.error(err); setErr(true); } };
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const unsub = onSnapshot(doc(db, 'users', currentUser.uid), (snap) => {
+      if (snap.exists()) setFriends(snap.data().friends || []);
+      else setFriends([]);
+    }, (err) => { console.warn('Failed to listen user friends', err); setFriends([]); });
+    return () => unsub();
+  }, [currentUser?.uid]);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!username.trim()) return;
+    try {
+      // Jika input diawali '@' cari berdasarkan handle, jika tidak cari displayName
+      const term = username.trim();
+      const q = term.startsWith('@')
+        ? query(collection(db, 'users'), where('handle', '==', term))
+        : query(collection(db, 'users'), where('displayName', '==', term));
+      const querySnapshot = await getDocs(q);
+      if (querySnapshot.empty) {
+        setErr(true);
+        setUser(null);
+      } else {
+        querySnapshot.forEach((doc) => {
+          if (doc.data().uid !== currentUser.uid) setUser(doc.data());
+          else setUser(null);
+        });
+        setErr(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setErr(true);
+    }
+  };
   const handleSelect = async () => {
     if (!user) return;
+    // pastikan user adalah teman sebelum memulai chat
+    if (!friends.includes(user.uid)) {
+      console.warn('Must add friend before chatting');
+      return;
+    }
     const combinedId = currentUser.uid > user.uid ? currentUser.uid + user.uid : user.uid + currentUser.uid;
     try {
       const res = await getDoc(doc(db, 'chats', combinedId));
@@ -127,7 +188,39 @@ const Search = () => {
     } catch (err) { console.error("Gagal membuat/memilih chat:", err); }
     setUser(null); setUsername('');
   };
-  return ( <div className="search-container"> <form onSubmit={handleSearch} className="search-form"> <input type="text" placeholder="Cari pengguna (username)..." value={username} onChange={(e) => setUsername(e.target.value)} /> <button type="submit"><FiSearch /></button> </form> {err && <span className="search-error">Pengguna tidak ditemukan</span>} {user && ( <div className="search-result" onClick={handleSelect}> <Avatar src={user.photoURL} alt={user.displayName} size={40} /> <div className="chat-info"> <span className="chat-name">{user.displayName}</span> <span className="chat-last-msg">Mulai obrolan baru</span> </div> </div> )} </div> );
+  const addFriend = async () => {
+    if (!currentUser || !user) return;
+    try {
+      await updateDoc(doc(db, 'users', currentUser.uid), { friends: arrayUnion(user.uid) });
+      await updateDoc(doc(db, 'users', user.uid), { friends: arrayUnion(currentUser.uid) });
+    } catch (err) { console.error('Gagal menambahkan teman:', err); }
+  };
+
+  return (
+    <div className="search-container">
+      <form onSubmit={handleSearch} className="search-form">
+        <input type="text" placeholder="Cari pengguna (username atau @handle)..." value={username} onChange={(e) => setUsername(e.target.value)} />
+        <button type="submit"><FiSearch /></button>
+      </form>
+      {err && <span className="search-error">Pengguna tidak ditemukan</span>}
+      {user && (
+        <div className="search-result">
+          <Avatar src={user.photoURL} alt={user.displayName} size={40} />
+          <div className="chat-info">
+            <span className="chat-name">{user.displayName} {user.handle && <small className="handle">{user.handle}</small>}</span>
+            <span className="chat-last-msg">{friends.includes(user.uid) ? 'Teman Anda' : 'Bukan teman'}</span>
+          </div>
+          <div className="search-actions">
+            {!friends.includes(user.uid) ? (
+              <button className="add-friend-btn" onClick={addFriend}>Tambah Teman</button>
+            ) : (
+              <button className="start-chat-btn" onClick={handleSelect}>Mulai Chat</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 // ==========================================
@@ -135,6 +228,7 @@ const Search = () => {
 // ==========================================
 const ChatList = ({ showArchived }) => { // Hapus prop onContextMenu
   const [allChats, setAllChats] = useState([]); // Simpan semua chat
+  const [chatSearch, setChatSearch] = useState('');
   const { currentUser } = useAuth();
   const { dispatch, data: chatData } = useChat();
 
@@ -187,21 +281,26 @@ const ChatList = ({ showArchived }) => { // Hapus prop onContextMenu
   
   // HAPUS: handleContextMenu
 
+  // Prepare items for Fuse
+  const chatItems = sortedChats.map(([chatId, chatInfo]) => ({ chatId, chatInfo, displayName: chatInfo.userInfo?.displayName || '', lastText: chatInfo.lastMessage?.text || '' }));
+  const fuse = new Fuse(chatItems, { keys: ['displayName', 'lastText'], threshold: 0.4 });
+  const filtered = chatSearch.trim() ? fuse.search(chatSearch.trim()).map(r => r.item) : chatItems;
+
   return (
     <div className="chat-list">
+      <div className="search-container" style={{ padding: '8px 12px' }}>
+        <input type="text" placeholder="Cari obrolan..." value={chatSearch} onChange={(e) => setChatSearch(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: 8, border: '1px solid var(--border-color)' }} />
+      </div>
       {sortedChats.length === 0 && (
         <p className="no-chats">{showArchived ? 'Tidak ada obrolan yang diarsipkan.' : 'Mulai obrolan baru.'}</p>
       )}
-      {sortedChats.map(([chatId, chatInfo]) => (
-        // Pastikan chatInfo dan userInfo ada sebelum render
+      {filtered.map(({ chatId, chatInfo }) => (
         chatInfo && chatInfo.userInfo && (
           <div
-            className={`chat-item ${chatId === chatData.chatId ? 'active' : ''} ${chatInfo.isPinned && !showArchived ? 'pinned' : ''}`} // Tambah class 'pinned'
+            className={`chat-item ${chatId === chatData.chatId ? 'active' : ''} ${chatInfo.isPinned && !showArchived ? 'pinned' : ''}`}
             key={chatId}
             onClick={() => handleSelect(chatInfo)}
-            // HAPUS: onContextMenu
           >
-            {/* Tampilkan ikon pin jika di-pin & tidak di arsip */}
             {chatInfo.isPinned && !showArchived && <FiPin size={14} className="pin-icon" />}
             <Avatar
               src={chatInfo.userInfo.photoURL}
@@ -285,20 +384,42 @@ const MessageList = ({ setReplyingTo, onForward }) => {
    const [messages, setMessages] = useState([]); const { currentUser } = useAuth(); const { data } = useChat(); const messagesEndRef = useRef(null); const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null); const [menuOpenMsgId, setMenuOpenMsgId] = useState(null); const [editingMsgId, setEditingMsgId] = useState(null); const [editingText, setEditingText] = useState(""); const menuRef = useRef(null); useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]); useEffect(() => { setReactionPickerMsgId(null); setMenuOpenMsgId(null); setEditingMsgId(null); if (!data.chatId) { setMessages([]); return; } const collectionPath = data.isGroup ? "groups" : "chats"; const q = query(collection(db, collectionPath, data.chatId, "messages"), orderBy("createdAt")); const unsub = onSnapshot(q, (querySnapshot) => { const newMessages = []; querySnapshot.forEach((doc) => { newMessages.push({ id: doc.id, ...doc.data() }); }); setMessages(newMessages); }, (error) => { console.error("Error fetching messages:", error); }); return () => unsub(); }, [data.chatId, data.isGroup]); useEffect(() => { const handleClickOutside = (event) => { if (menuRef.current && !menuRef.current.contains(event.target) && !event.target.closest('.more-btn')) setMenuOpenMsgId(null); }; if (menuOpenMsgId) { document.addEventListener('click', handleClickOutside); document.addEventListener('contextmenu', handleClickOutside); } return () => { document.removeEventListener('click', handleClickOutside); document.removeEventListener('contextmenu', handleClickOutside); }; }, [menuOpenMsgId]); const updateLastMessageForAll = async (lastMessageData) => { if (!data.chatId) return; try { if (data.isGroup) { const groupDoc = await getDoc(doc(db, "groups", data.chatId)); if (!groupDoc.exists()) return; const members = groupDoc.data().members || []; for (const uid of members) { const userChatDocRef = doc(db, "userChats", uid); const userChatSnap = await getDoc(userChatDocRef); if(userChatSnap.exists() && userChatSnap.data()[data.chatId]) { await updateDoc(userChatDocRef, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() }); } } } else { const userChatRefSelf = doc(db, "userChats", currentUser.uid); const userChatSnapSelf = await getDoc(userChatRefSelf); if (userChatSnapSelf.exists() && userChatSnapSelf.data()[data.chatId]) { await updateDoc(userChatRefSelf, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() }); } if (data.user?.uid) { const userChatRefOther = doc(db, "userChats", data.user.uid); const userChatSnapOther = await getDoc(userChatRefOther); if (userChatSnapOther.exists() && userChatSnapOther.data()[data.chatId]) { await updateDoc(userChatRefOther, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() }); } } } } catch(err) { console.error("Gagal update lastMessage: ", err); } }; const handleDelete = async (msg) => { const collectionPath = data.isGroup ? "groups" : "chats"; const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id); try { await updateDoc(msgRef, { text: "Pesan ini telah dihapus", isDeleted: true, fileURL: null, fileType: null, fileName: null, reactions: {}, replyingTo: null }); await updateLastMessageForAll({ text: "Pesan ini telah dihapus", isDeleted: true }); } catch (err) { console.error("Gagal menghapus pesan:", err); } setMenuOpenMsgId(null); }; const openEditMode = (msg) => { setEditingMsgId(msg.id); setEditingText(msg.text); setMenuOpenMsgId(null); }; const handleSaveEdit = async (msg) => { if (editingText.trim() === '') return; const collectionPath = data.isGroup ? "groups" : "chats"; const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id); try { await updateDoc(msgRef, { text: editingText, isEdited: true, editedAt: serverTimestamp() }); await updateLastMessageForAll({ text: editingText, fileType: msg.fileType }); } catch (err) { console.error("Gagal mengedit pesan:", err); } setEditingMsgId(null); setEditingText(""); }; const MessageEditor = ({ msg }) => ( <form className="edit-form" onSubmit={(e) => { e.preventDefault(); handleSaveEdit(msg); }}> <input type="text" value={editingText} onChange={(e) => setEditingText(e.target.value)} autoFocus onBlur={() => setEditingMsgId(null)} /> <div className="edit-form-buttons"> <button type="button" className="cancel" onClick={() => setEditingMsgId(null)}>Batal</button> <button type="submit" className="save">Simpan</button> </div> </form> ); const handleReaction = async (emojiObject, msg) => { const emoji = emojiObject.emoji; const collectionPath = data.isGroup ? "groups" : "chats"; const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id); const reactionKey = `reactions.${emoji}`; try { const docSnap = await getDoc(msgRef); if (!docSnap.exists() || docSnap.data().isDeleted) return; const reactions = docSnap.data().reactions || {}; const userList = reactions[emoji] || []; if (userList.includes(currentUser.uid)) { await updateDoc(msgRef, { [reactionKey]: arrayRemove(currentUser.uid) }); const updatedSnap = await getDoc(msgRef); const updatedReactions = updatedSnap.data()?.reactions || {}; const updatedList = updatedReactions[emoji]; if (updatedList && updatedList.length === 0 && updatedReactions.hasOwnProperty(emoji)) { await updateDoc(msgRef, { [reactionKey]: FieldValue.delete() }); } } else { await updateDoc(msgRef, { [reactionKey]: arrayUnion(currentUser.uid) }); } } catch (err) { console.error("Gagal menambah/menghapus reaksi: ", err); } setReactionPickerMsgId(null); }; const RenderReactions = ({ reactions }) => { if (!reactions || Object.keys(reactions).length === 0) return null; return ( <div className="reactions-container"> {Object.entries(reactions).filter(([emoji, uids]) => uids && uids.length > 0).map(([emoji, uids]) => ( <span key={emoji} className="reaction-tag">{emoji} {uids.length}</span> ))} </div> ); }; const formatTime = (timestamp) => { if (!timestamp) return 'Baru saja'; const date = timestamp.toDate(); return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }); }; const handleReply = (msg) => { const replyData = { messageId: msg.id, senderName: msg.senderName || 'User', textSnippet: msg.text ? (msg.text.length > 50 ? msg.text.substring(0, 50) + '...' : msg.text) : (msg.fileName ? `📄 ${msg.fileName}` : (msg.fileType === 'image' ? '🖼️ Foto' : (msg.fileType === 'video' ? '📹 Video' : 'File'))), fileType: msg.fileType }; setReplyingTo(replyData); }; const ReplyQuote = ({ replyData }) => { if (!replyData) return null; let icon = null; if (replyData.fileType === 'image') icon = "🖼️ "; else if (replyData.fileType === 'video') icon = "📹 "; else if (replyData.fileType === 'raw' || replyData.fileType === 'auto') icon = "📄 "; return ( <div className="reply-quote"> <div className="reply-quote-sender">{replyData.senderName}</div> <div className="reply-quote-text">{icon}{replyData.textSnippet}</div> </div> ); }; const ForwardedLabel = ({ forwardedFrom }) => { if (!forwardedFrom) return null; return <div className="forwarded-label"><FiShare size={12} /> Diteruskan dari {forwardedFrom}</div>; };
    const MessageContent = ({ msg }) => { if (msg.isDeleted) { return ( <p className="message-text deleted"> <FiTrash2 size={14} /> Pesan ini telah dihapus </p> ); } let originalContent; switch (msg.fileType) { case 'image': originalContent = (<> <img src={msg.fileURL} alt="Kiriman gambar" className="message-image" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; case 'video': originalContent = (<> <video src={msg.fileURL} controls className="message-video" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; case 'raw': case 'auto': originalContent = (<> <a href={msg.fileURL} target="_blank" rel="noopener noreferrer" className="message-file"> <FiFile size={24} /> <span>{msg.fileName || 'File Terlampir'}</span> </a> {msg.text && <p className="message-text caption">{msg.text}</p>} </>); break; default: originalContent = <p className="message-text">{msg.text}</p>; break; } return ( <> <ForwardedLabel forwardedFrom={msg.forwardedFrom} /> <ReplyQuote replyData={msg.replyingTo} /> {originalContent} </> ); };
 
+  useEffect(() => {
+    const onDocClick = (e) => {
+      const tag = e.target.closest('.reaction-tag');
+      if (!tag) return;
+      const emoji = tag.textContent.trim().split(' ')[0];
+      const msgEl = tag.closest('[data-msgid]');
+      const msgId = msgEl?.getAttribute('data-msgid');
+      if (!msgId) return;
+      const msg = messages.find(m => m.id === msgId);
+      if (!msg) return;
+      handleReaction({ emoji }, msg);
+    };
+    document.addEventListener('click', onDocClick);
+    return () => document.removeEventListener('click', onDocClick);
+  }, [messages]);
+
   return (
     <div className="message-list">
       {messages.map((msg) => (
-        <div key={msg.id} className={`message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`}>
+        <div key={msg.id} data-msgid={msg.id} className={`message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`}>
           <div className="message-bubble-wrapper">
             {!msg.isDeleted && !editingMsgId && (<button className="more-btn" title="Opsi" onClick={() => setMenuOpenMsgId(msg.id === menuOpenMsgId ? null : msg.id)}><FiMoreVertical /></button>)}
             {menuOpenMsgId === msg.id && (<div className="message-menu" ref={menuRef}> <button onClick={() => {onForward(msg); setMenuOpenMsgId(null);}}><FiShare /> Teruskan</button> {msg.senderId === currentUser.uid && msg.text && !msg.fileURL && (<button onClick={() => openEditMode(msg)}><FiEdit2 /> Edit</button>)} {msg.senderId === currentUser.uid && (<button onClick={() => handleDelete(msg)} className="delete"><FiTrash2 /> Hapus</button>)} </div>)}
             <div className="message-bubble">
               {!msg.isDeleted && !editingMsgId && ( <button className="reply-btn" title="Balas" onClick={() => handleReply(msg)}> <FiCornerUpLeft /> </button> )}
               {!msg.isDeleted && !editingMsgId && ( <button className="reaction-btn" title="Bereaksi" onClick={() => setReactionPickerMsgId(msg.id === reactionPickerMsgId ? null : msg.id)}><FiSmile /></button> )}
-              {reactionPickerMsgId === msg.id && ( <div className="reaction-picker-popup"> <Picker onEmojiClick={(emojiObject) => handleReaction(emojiObject, msg)} pickerStyle={{ width: '250px', height: '200px' }} disableSearchBar disableSkinTonePicker groupVisibility={{ recently_used: false, smileys_emotion: true, animals_nature: false, food_drink: false, travel_places: false, activities: false, objects: false, symbols: false, flags: false, }} preload /> </div> )}
+              {reactionPickerMsgId === msg.id && (
+                <ReactionPicker
+                  onSelect={(emojiObject) => handleReaction(emojiObject, msg)}
+                  onClose={() => setReactionPickerMsgId(null)}
+                  pickerStyle={{ width: 250, height: 200 }}
+                />
+              )}
               {editingMsgId === msg.id ? ( <MessageEditor msg={msg} /> ) : ( <> {data.isGroup && msg.senderId !== currentUser.uid && !msg.isDeleted && (<p className="message-sender">{msg.senderName || 'User'}</p>)} <MessageContent msg={msg} /> <span className="message-time"> {formatTime(msg.createdAt)} {msg.isEdited && !msg.isDeleted && <span className="edited-tag">(edited)</span>} </span> </> )}
             </div>
-            <RenderReactions reactions={msg.reactions} />
+            <RenderReactionsClickable reactions={msg.reactions} msg={msg} />
           </div>
         </div>
       ))}
@@ -312,11 +433,152 @@ const MessageList = ({ setReplyingTo, onForward }) => {
 // KOMPONEN FORM KIRIM (SendForm)
 // ==========================================
 const SendForm = ({ replyingTo, setReplyingTo }) => {
-  // ... (Kode SendForm tetap sama)
-   const [text, setText] = useState(''); const [file, setFile] = useState(null); const [isUploading, setIsUploading] = useState(false); const [showEmojiPicker, setShowEmojiPicker] = useState(false); const { currentUser } = useAuth(); const { data } = useChat(); const pickerRef = useRef(null); const inputRef = useRef(null); useEffect(() => { if (replyingTo) { inputRef.current?.focus(); } }, [replyingTo]); const onEmojiClick = (emojiObject) => { setText(prevText => prevText + emojiObject.emoji); setShowEmojiPicker(false); }; useEffect(() => { const handleClickOutside = (event) => { if (pickerRef.current && !pickerRef.current.contains(event.target)) setShowEmojiPicker(false); }; document.addEventListener("mousedown", handleClickOutside); return () => document.removeEventListener("mousedown", handleClickOutside); }, [pickerRef]); const handleFileChange = (e) => { if (e.target.files[0]) setFile(e.target.files[0]); }; const uploadFile = async () => { const formData = new FormData(); formData.append("file", file); formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET); let resourceType = 'auto'; if (file.type.startsWith('image/')) resourceType = 'image'; if (file.type.startsWith('video/')) resourceType = 'video'; try { const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, { method: "POST", body: formData }); const data = await res.json(); if (data.error) throw new Error(data.error.message); return { url: data.secure_url, type: data.resource_type, name: file.name }; } catch (err) { console.error("Cloudinary upload error:", err); return null; } }; const updateLastMessageForAll = async (lastMessageData) => { if (!data.chatId) return; try { if (data.isGroup) { const groupDoc = await getDoc(doc(db, "groups", data.chatId)); if (!groupDoc.exists()) return; const members = groupDoc.data().members || []; for (const uid of members) { const userChatDocRef = doc(db, "userChats", uid); const userChatSnap = await getDoc(userChatDocRef); if(userChatSnap.exists() && userChatSnap.data()[data.chatId]) { await updateDoc(userChatDocRef, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() }); } } } else { const userChatRefSelf = doc(db, "userChats", currentUser.uid); const userChatSnapSelf = await getDoc(userChatRefSelf); if (userChatSnapSelf.exists() && userChatSnapSelf.data()[data.chatId]) { await updateDoc(userChatRefSelf, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() }); } if (data.user?.uid) { const userChatRefOther = doc(db, "userChats", data.user.uid); const userChatSnapOther = await getDoc(userChatRefOther); if (userChatSnapOther.exists() && userChatSnapOther.data()[data.chatId]) { await updateDoc(userChatRefOther, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() }); } } } } catch(err) { console.error("Gagal update lastMessage di SendForm: ", err); } };
-   const handleSubmit = async (e) => { e.preventDefault(); if (text.trim() === '' && !file) return; if (!currentUser || !data.chatId) return; setIsUploading(true); let fileURL = null, fileType = null, fileName = null; if (file) { const uploadResult = await uploadFile(); if (uploadResult) { fileURL = uploadResult.url; fileType = uploadResult.type; fileName = uploadResult.name; } else { setIsUploading(false); alert("Gagal mengupload file."); return; } } const collectionPath = data.isGroup ? "groups" : "chats"; const messageData = { senderId: currentUser.uid, senderName: currentUser.displayName, createdAt: serverTimestamp(), text: text, fileURL: fileURL, fileType: fileType, fileName: fileName, reactions: {}, isDeleted: false, isEdited: false, replyingTo: replyingTo }; try { await addDoc(collection(db, collectionPath, data.chatId, "messages"), messageData); const lastMessageData = { text: text || (fileName ? `📄 ${fileName}` : (fileType === 'image' ? "🖼️ Foto" : "📹 Video")), fileType: fileType, isDeleted: false }; await updateLastMessageForAll(lastMessageData); } catch (err) { console.error("Error mengirim pesan: ", err); } setText(''); setFile(null); setReplyingTo(null); if (document.getElementById('file-upload')) document.getElementById('file-upload').value = null; setIsUploading(false); };
-   const ReplyPreview = () => { if (!replyingTo) return null; let icon = null; if (replyingTo.fileType === 'image') icon = "🖼️ "; else if (replyingTo.fileType === 'video') icon = "📹 "; else if (replyingTo.fileType === 'raw' || replyingTo.fileType === 'auto') icon = "📄 "; return ( <div className="reply-preview"> <div className="reply-preview-content"> <FiCornerUpLeft className="reply-icon" /> <div className="reply-text"> <div className="reply-sender">Membalas kepada {replyingTo.senderName}</div> <div className="reply-snippet">{icon}{replyingTo.textSnippet}</div> </div> </div> <button onClick={() => setReplyingTo(null)} className="cancel-reply-btn"><FiX /></button> </div> ); };
-   return ( <> {file && !isUploading ? ( <div className="file-preview"> <span>File terpilih: {file.name}</span> <button onClick={() => { setFile(null); document.getElementById('file-upload').value = null; }}>X</button> </div> ) : ( <ReplyPreview /> )} <div className="send-form-wrapper"> {showEmojiPicker && ( <div ref={pickerRef} className="emoji-picker-input-container"> <Picker onEmojiClick={onEmojiClick} pickerStyle={{ width: '100%', boxShadow: 'none' }} preload /> </div> )} <form onSubmit={handleSubmit} className="send-form"> <input type="file" id="file-upload" style={{ display: 'none' }} onChange={handleFileChange} disabled={isUploading} /> <label htmlFor="file-upload" className="attach-btn" title="Lampirkan File"><FiPaperclip size={20} /></label> <button type="button" className="attach-btn" title="Pilih Emoji" onClick={() => setShowEmojiPicker(!showEmojiPicker)}><FiSmile size={20} /></button> <input ref={inputRef} type="text" placeholder="Ketik pesan atau caption..." value={text} onChange={(e) => setText(e.target.value)} onFocus={() => setShowEmojiPicker(false)} disabled={isUploading} /> <button type="submit" className="primary" disabled={isUploading}>{isUploading ? <FiLoader className="loading-spinner-btn" /> : <FiSend />}</button> </form> </div> </> );
+  const [text, setText] = useState('');
+  const [file, setFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const { currentUser } = useAuth();
+  const { data } = useChat();
+  const pickerRef = useRef(null);
+  const inputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+
+  useEffect(() => { if (replyingTo) inputRef.current?.focus(); }, [replyingTo]);
+
+  const onEmojiClick = (emojiObject) => { setText(prev => prev + emojiObject.emoji); setShowEmojiPicker(false); };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => { if (pickerRef.current && !pickerRef.current.contains(event.target)) setShowEmojiPicker(false); };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleFileChange = (e) => { if (e.target.files[0]) setFile(e.target.files[0]); };
+
+  const uploadFile = async () => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    let resourceType = 'auto';
+    if (file.type.startsWith('image/')) resourceType = 'image';
+    if (file.type.startsWith('video/')) resourceType = 'video';
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      return { url: data.secure_url, type: data.resource_type, name: file.name };
+    } catch (err) { console.error('Cloudinary upload error:', err); return null; }
+  };
+
+  const updateLastMessageForAll = async (lastMessageData) => {
+    if (!data.chatId) return;
+    try {
+      if (data.isGroup) {
+        const groupDoc = await getDoc(doc(db, 'groups', data.chatId));
+        if (!groupDoc.exists()) return;
+        const members = groupDoc.data().members || [];
+        for (const uid of members) {
+          const userChatDocRef = doc(db, 'userChats', uid);
+          const userChatSnap = await getDoc(userChatDocRef);
+          if (userChatSnap.exists() && userChatSnap.data()[data.chatId]) {
+            await updateDoc(userChatDocRef, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() });
+          }
+        }
+      } else {
+        const userChatRefSelf = doc(db, 'userChats', currentUser.uid);
+        const userChatSnapSelf = await getDoc(userChatRefSelf);
+        if (userChatSnapSelf.exists() && userChatSnapSelf.data()[data.chatId]) {
+          await updateDoc(userChatRefSelf, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() });
+        }
+        if (data.user?.uid) {
+          const userChatRefOther = doc(db, 'userChats', data.user.uid);
+          const userChatSnapOther = await getDoc(userChatRefOther);
+          if (userChatSnapOther.exists() && userChatSnapOther.data()[data.chatId]) {
+            await updateDoc(userChatRefOther, { [`${data.chatId}.lastMessage`]: lastMessageData, [`${data.chatId}.date`]: serverTimestamp() });
+          }
+        }
+      }
+    } catch (err) { console.error('Gagal update lastMessage di SendForm: ', err); }
+  };
+
+  const setTypingStatus = async (isTyping) => {
+    try {
+      if (!data.chatId || !currentUser?.uid) return;
+      const typingDocRef = doc(db, 'typing', data.chatId);
+      if (isTyping) {
+        await setDoc(typingDocRef, { [currentUser.uid]: currentUser.displayName || 'User' }, { merge: true });
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(async () => { try { await updateDoc(typingDocRef, { [currentUser.uid]: FieldValue.delete() }); } catch (e) {} }, 3000);
+      } else {
+        if (typingTimeoutRef.current) { clearTimeout(typingTimeoutRef.current); typingTimeoutRef.current = null; }
+        try { await updateDoc(typingDocRef, { [currentUser.uid]: FieldValue.delete() }); } catch (e) {}
+      }
+    } catch (err) { }
+  };
+
+  const handleInputChange = (e) => { const v = e.target.value; setText(v); setTypingStatus(true); };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (text.trim() === '' && !file) return;
+    if (!currentUser || !data.chatId) return;
+
+    if (!data.isGroup && data.user?.uid) {
+      try {
+        const me = await getDoc(doc(db, 'users', currentUser.uid));
+        const myFriends = me.exists() ? (me.data().friends || []) : [];
+        if (!myFriends.includes(data.user.uid) && data.user.uid !== currentUser.uid) { alert('Anda harus menambahkan pengguna sebagai teman sebelum mengirim pesan.'); return; }
+      } catch (err) { console.warn('Tidak dapat memverifikasi daftar teman:', err); }
+    }
+
+    setIsUploading(true);
+    let fileURL = null, fileType = null, fileName = null;
+    if (file) {
+      const uploadResult = await uploadFile();
+      if (uploadResult) { fileURL = uploadResult.url; fileType = uploadResult.type; fileName = uploadResult.name; } else { setIsUploading(false); alert('Gagal mengupload file.'); return; }
+    }
+    const collectionPath = data.isGroup ? 'groups' : 'chats';
+    const messageData = { senderId: currentUser.uid, senderName: currentUser.displayName, createdAt: serverTimestamp(), text: text, fileURL, fileType, fileName, reactions: {}, isDeleted: false, isEdited: false, replyingTo };
+    try {
+      await addDoc(collection(db, collectionPath, data.chatId, 'messages'), messageData);
+      const lastMessageData = { text: text || (fileName ? `📄 ${fileName}` : (fileType === 'image' ? '🖼️ Foto' : '📹 Video')), fileType, isDeleted: false };
+      await updateLastMessageForAll(lastMessageData);
+    } catch (err) { console.error('Error mengirim pesan: ', err); }
+
+    setText(''); setFile(null); setReplyingTo(null); if (document.getElementById('file-upload')) document.getElementById('file-upload').value = null; setIsUploading(false);
+    try { if (data.chatId && currentUser?.uid) await updateDoc(doc(db, 'typing', data.chatId), { [currentUser.uid]: FieldValue.delete() }); } catch (e) {}
+  };
+
+  const ReplyPreview = () => { if (!replyingTo) return null; let icon = null; if (replyingTo.fileType === 'image') icon = '🖼️ '; else if (replyingTo.fileType === 'video') icon = '📹 '; else if (replyingTo.fileType === 'raw' || replyingTo.fileType === 'auto') icon = '📄 '; return ( <div className="reply-preview"> <div className="reply-preview-content"> <FiCornerUpLeft className="reply-icon" /> <div className="reply-text"> <div className="reply-sender">Membalas kepada {replyingTo.senderName}</div> <div className="reply-snippet">{icon}{replyingTo.textSnippet}</div> </div> </div> <button onClick={() => setReplyingTo(null)} className="cancel-reply-btn"><FiX /></button> </div> ); };
+
+  return (
+    <>
+      {file && !isUploading ? (
+        <div className="file-preview">
+          <span>File terpilih: {file.name}</span>
+          <button onClick={() => { setFile(null); document.getElementById('file-upload').value = null; }}>X</button>
+        </div>
+      ) : (
+        <ReplyPreview />
+      )}
+
+      <div className="send-form-wrapper">
+        {showEmojiPicker && (
+          <div ref={pickerRef} className="emoji-picker-input-container">
+            <Picker onEmojiClick={onEmojiClick} pickerStyle={{ width: '100%', boxShadow: 'none' }} preload />
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="send-form">
+          <input type="file" id="file-upload" style={{ display: 'none' }} onChange={handleFileChange} disabled={isUploading} />
+          <label htmlFor="file-upload" className="attach-btn" title="Lampirkan File"><FiPaperclip size={20} /></label>
+          <button type="button" className="attach-btn" title="Pilih Emoji" onClick={() => setShowEmojiPicker(!showEmojiPicker)}><FiSmile size={20} /></button>
+          <input ref={inputRef} type="text" placeholder="Ketik pesan atau caption..." value={text} onChange={handleInputChange} onFocus={() => setShowEmojiPicker(false)} disabled={isUploading} />
+          <button type="submit" className="primary" disabled={isUploading}>{isUploading ? <FiLoader className="loading-spinner-btn" /> : <FiSend />}</button>
+        </form>
+      </div>
+    </>
+  );
 };
 
 // ==========================================
@@ -352,7 +614,7 @@ const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
 
   const updateLastMessage = async (targetChatId, targetChatInfo, lastMessageData) => {
      // ... (Kode updateLastMessage helper tetap sama)
-     try { if (targetChatInfo.isGroup) { const groupDoc = await getDoc(doc(db, "groups", targetChatId)); if (!groupDoc.exists()) return; const members = groupDoc.data().members || []; for (const uid of members) { const userChatDocRef = doc(db, "userChats", uid); const userChatSnap = await getDoc(userChatDocRef); if(userChatSnap.exists() && userChatSnap.data()[targetChatId]) { await updateDoc(userChatDocRef, { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() }); } } } else { const recipientUid = targetChatInfo.userInfo.uid; const senderChatDocRef = doc(db, "userChats", currentUser.uid); const senderChatSnap = await getDoc(senderChatDocRef); if (senderChatSnap.exists() && senderChatSnap.data()[targetChatId]) { await updateDoc(senderChatDocRef, { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() }); } if (recipientUid && recipientUid !== currentUser.uid) { const recipientChatDocRef = doc(db, "userChats", recipientUid); const recipientChatSnap = await getDoc(recipientChatDocRef); if (recipientChatSnap.exists() && recipientChatSnap.data()[targetChatId]) { await updateDoc(recipientChatDocRef, { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() }); } } } } catch (err) { console.error(`Gagal update lastMessage for chat ${targetChatId}: `, err); }
+          const onEmojiClick = (emojiObject) => {
   };
 
 
@@ -417,6 +679,7 @@ const ChatWindow = () => {
   // --- LOGIKA BARU UNTUK MENU HEADER ---
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const headerMenuRef = useRef(null);
+  const [typingUsers, setTypingUsers] = useState([]);
   
   useEffect(() => {
     // Reset semua state saat chat berubah
@@ -425,6 +688,37 @@ const ChatWindow = () => {
     setShowForwardModal(false);
     setIsHeaderMenuOpen(false); // <-- Reset menu
   }, [data.chatId]);
+
+  // Listen typing document for this chat
+  useEffect(() => {
+    if (!data.chatId) { setTypingUsers([]); return; }
+    const typingDocRef = doc(db, 'typing', data.chatId);
+    const unsub = onSnapshot(typingDocRef, (snap) => {
+      const d = snap.exists() ? snap.data() : {};
+      const names = Object.entries(d || {}).map(([uid, name]) => ({ uid, name })).filter(x => x.uid !== currentUser?.uid).map(x => x.name);
+      setTypingUsers(names);
+    }, (err) => { console.warn('typing listen failed', err); setTypingUsers([]); });
+    return () => unsub();
+  }, [data.chatId, currentUser?.uid]);
+
+  // Listen to the last message and mark as seen when a new message arrives
+  useEffect(() => {
+    if (!data.chatId) return;
+    const collectionPath = data.isGroup ? 'groups' : 'chats';
+    const q = query(collection(db, collectionPath, data.chatId, 'messages'), orderBy('createdAt'), limitToLast(1));
+    const unsub = onSnapshot(q, (snap) => {
+      snap.forEach(async (docSnap) => {
+        const msg = { id: docSnap.id, ...docSnap.data() };
+        if (!msg) return;
+        if (msg.senderId !== currentUser.uid) {
+          try {
+            await updateDoc(doc(db, collectionPath, data.chatId, 'messages', msg.id), { seenBy: arrayUnion(currentUser.uid) });
+          } catch (e) { /* ignore */ }
+        }
+      });
+    });
+    return () => unsub();
+  }, [data.chatId, data.isGroup, currentUser?.uid]);
 
   // Efek untuk menutup menu header saat klik di luar
   useEffect(() => {
@@ -443,6 +737,15 @@ const ChatWindow = () => {
     }
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isHeaderMenuOpen]);
+
+  // Compute display text and full tooltip for typing users
+  const typingText = (() => {
+    const n = typingUsers.length;
+    if (n === 1) return `${typingUsers[0]} sedang mengetik`;
+    if (n === 2) return `${typingUsers[0]} dan ${typingUsers[1]} sedang mengetik`;
+    return `${typingUsers[0]} dan ${n - 1} lainnya sedang mengetik`;
+  })();
+  const typingFull = typingUsers.join(', ');
 
 
   const handleOpenForwardModal = (message) => { setMessageToForward(message); setShowForwardModal(true); };
@@ -508,6 +811,17 @@ const ChatWindow = () => {
             isGroup={data.isGroup} 
           />
           <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3>
+          {typingUsers && typingUsers.length > 0 && (
+            <div className="typing-indicator">
+              <span className="typing-text" title={typingFull}>{typingText}</span>
+              <span className="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+            </div>
+          )}
+
           
           {/* --- TOMBOL MENU BARU --- */}
           <div className="chat-header-menu-container">

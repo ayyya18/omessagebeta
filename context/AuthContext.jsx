@@ -1,7 +1,9 @@
 // src/context/AuthContext.jsx
 import { createContext, useEffect, useState, useContext } from "react";
-import { auth } from "../firebase";
+import { auth, db, messaging, onMessage as fcmOnMessage } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, setDoc } from 'firebase/firestore';
+import { requestNotificationPermission, showLocalNotification } from '../notifications';
 
 export const AuthContext = createContext();
 
@@ -15,6 +17,31 @@ export const AuthContextProvider = ({ children }) => {
       setCurrentUser(user);
       setLoading(false); // Matikan loading setelah Firebase merespon
       console.log("Auth State Changed:", user ? "Logged In" : "Logged Out");
+
+      // Jika user login, lakukan setup notifikasi (token + foreground handler)
+      if (user) {
+        (async () => {
+          try {
+            const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY;
+            if (vapidKey) {
+              const token = await requestNotificationPermission(vapidKey);
+              if (token) {
+                await setDoc(doc(db, 'users', user.uid), { fcmToken: token }, { merge: true });
+              }
+            }
+
+            if (messaging && fcmOnMessage) {
+              fcmOnMessage(messaging, (payload) => {
+                const title = payload.notification?.title || 'Pesan Baru';
+                const body = payload.notification?.body || '';
+                showLocalNotification(title, { body });
+              });
+            }
+          } catch (err) {
+            console.warn('Notification setup skipped or failed:', err?.message || err);
+          }
+        })();
+      }
     });
 
     return () => {

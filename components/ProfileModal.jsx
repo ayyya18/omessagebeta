@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db, auth } from '../firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, query, where, getDocs, collection } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { FiX, FiCamera, FiLoader } from 'react-icons/fi';
 import './ProfileModal.css'; // Kita akan buat file CSS ini
@@ -16,6 +16,7 @@ const ProfileModal = ({ show, onClose }) => {
   const { currentUser } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
+  const [handle, setHandle] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +34,7 @@ const ProfileModal = ({ show, onClose }) => {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setBio(docSnap.data().bio || '');
+          setHandle(docSnap.data().handle || '');
         }
       };
       fetchUserData();
@@ -78,12 +80,30 @@ const ProfileModal = ({ show, onClose }) => {
       });
 
       // 3. Update dokumen 'users' di Firestore
+      // Jika handle berubah, pastikan unik
       const userDocRef = doc(db, 'users', currentUser.uid);
-      await updateDoc(userDocRef, {
-        displayName: displayName,
-        photoURL: newPhotoURL,
-        bio: bio,
-      });
+      if (handle) {
+        const normalizedHandle = handle.startsWith('@') ? handle.trim() : `@${handle.trim()}`;
+        // Cek unik
+        const hq = query(collection(db, 'users'), where('handle', '==', normalizedHandle));
+        const hSnap = await getDocs(hq);
+        const conflict = hSnap.docs.find(d => d.id !== currentUser.uid);
+        if (conflict) {
+          throw new Error('Handle sudah digunakan oleh pengguna lain');
+        }
+        await updateDoc(userDocRef, {
+          displayName: displayName,
+          photoURL: newPhotoURL,
+          bio: bio,
+          handle: normalizedHandle
+        });
+      } else {
+        await updateDoc(userDocRef, {
+          displayName: displayName,
+          photoURL: newPhotoURL,
+          bio: bio,
+        });
+      }
 
       // TODO (Masa Depan): Update info ini di semua 'userChats' terkait
       
@@ -144,6 +164,16 @@ const ProfileModal = ({ show, onClose }) => {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Nama tampilan Anda"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="handle">Handle (ID pengguna)</label>
+            <input
+              id="handle"
+              type="text"
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              placeholder="@handleAnda"
             />
           </div>
           <div className="form-group">

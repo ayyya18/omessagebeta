@@ -6,7 +6,7 @@ import {
   updateProfile 
 } from "firebase/auth";
 import { auth, db } from '../firebase';
-import { doc, setDoc } from "firebase/firestore"; 
+import { doc, setDoc, query, where, getDocs, collection } from "firebase/firestore"; 
 import './Login.css'; // Kita akan buat file CSS ini
 
 const Login = () => {
@@ -14,12 +14,12 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState(''); // Hanya untuk registrasi
+  const [handle, setHandle] = useState(''); // Unique user id e.g. @abragaw
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
     if (isLogin) {
       // Proses Login
       try {
@@ -34,7 +34,20 @@ const Login = () => {
         setError("Username harus diisi saat registrasi");
         return;
       }
+      if (!handle) {
+        setError("Handle pengguna harus diisi (contoh: @abragaw)");
+        return;
+      }
       try {
+        // Pastikan handle unik
+        const normalizedHandle = handle.startsWith('@') ? handle.trim() : `@${handle.trim()}`;
+        const hQuery = query(collection(db, 'users'), where('handle', '==', normalizedHandle));
+        const hSnapshot = await getDocs(hQuery);
+        if (!hSnapshot.empty) {
+          setError('Handle sudah digunakan. Pilih yang lain.');
+          return;
+        }
+
         const res = await createUserWithEmailAndPassword(auth, email, password);
 
         // 1. Update profil di Firebase Auth
@@ -43,17 +56,17 @@ const Login = () => {
         });
 
         // 2. Buat dokumen user di Firestore
-        // Ini PENTING untuk menyimpan data tambahan (seperti teman, status, dll)
         await setDoc(doc(db, "users", res.user.uid), {
           uid: res.user.uid,
           displayName: username,
           email: email,
-          photoURL: "", // Default foto profil
+          photoURL: "",
           bio: "",
-          friends: [], // Untuk fitur tambah teman
+          handle: normalizedHandle,
+          friends: [],
         });
 
-        // Buat koleksi userChats untuknya (akan kita gunakan nanti)
+        // Buat koleksi userChats untuknya
         await setDoc(doc(db, "userChats", res.user.uid), {});
 
       } catch (err) {
@@ -70,13 +83,22 @@ const Login = () => {
 
         <form onSubmit={handleSubmit}>
           {!isLogin && (
-            <input
-              type="text"
-              placeholder="Username (unik)"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-            />
+            <>
+              <input
+                type="text"
+                placeholder="Username (unik)"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+              <input
+                type="text"
+                placeholder="Handle (unik, contoh: @abragaw)"
+                value={handle}
+                onChange={(e) => setHandle(e.target.value)}
+                required
+              />
+            </>
           )}
           <input
             type="email"

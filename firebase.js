@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getMessaging, onMessage } from 'firebase/messaging';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBy2CwId1iUZFEuiy5BrT86zcEreAP2crI",
@@ -15,3 +16,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+// Export messaging for notifications (will be undefined in non-HTTPS / localfile envs)
+let messaging;
+try {
+  messaging = getMessaging(app);
+} catch (err) {
+  // ignore if messaging isn't supported in this environment
+  console.warn('FCM not available:', err?.message || err);
+}
+export { messaging, onMessage };
