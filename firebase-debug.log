@@ -1,0 +1,26 @@
+[debug] [2026-01-31T08:19:27.139Z] ----------------------------------------------------------------------
+[debug] [2026-01-31T08:19:27.141Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\yamay\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init
+[debug] [2026-01-31T08:19:27.142Z] CLI Version:   14.20.0
+[debug] [2026-01-31T08:19:27.142Z] Platform:      win32
+[debug] [2026-01-31T08:19:27.142Z] Node Version:  v22.14.0
+[debug] [2026-01-31T08:19:27.142Z] Time:          Sat Jan 31 2026 15:19:27 GMT+0700 (Indochina Time)
+[debug] [2026-01-31T08:19:27.142Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-31T08:19:27.144Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\xampp\htdocs\message\omessage\src
+
+Before we get started, keep in mind:
+
+  * You are currently outside your home directory
+
+[debug] [2026-01-31T08:19:27.831Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-01-31T08:19:27.831Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}

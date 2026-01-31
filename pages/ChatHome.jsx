@@ -18,11 +18,13 @@ import {
   onSnapshot,
   orderBy,
   addDoc,
-  FieldValue,
+  deleteField,
   arrayUnion,
   arrayRemove,
   writeBatch
 } from 'firebase/firestore';
+// Backwards-compat helper: some code uses FieldValue.delete()
+const FieldValue = { delete: deleteField };
 // Import ikon baru
 import {
   FiSearch, FiSend, FiPaperclip, FiLoader, FiFile, FiUser, FiUsers, FiSmile,
@@ -369,7 +371,7 @@ const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
         const messagesColRef = collection(db, collectionPath, chatId, "messages");
         const newMessageRef = doc(messagesColRef);
         batch.set(newMessageRef, forwardedMessageData);
-        const lastMessageData = { text: forwardedMessageData.text || (forwardMessageData.fileName ? `📄 ${forwardMessageData.fileName}` : (forwardMessageData.fileType === 'image' ? "🖼️ Foto" : "📹 Video")), fileType: forwardedMessageData.fileType, isDeleted: false, forwardedFrom: forwardedMessageData.forwardedFrom };
+        const lastMessageData = { text: forwardedMessageData.text || (forwardedMessageData.fileName ? `📄 ${forwardedMessageData.fileName}` : (forwardedMessageData.fileType === 'image' ? "🖼️ Foto" : "📹 Video")), fileType: forwardedMessageData.fileType, isDeleted: false, forwardedFrom: forwardedMessageData.forwardedFrom };
         updatePromises.push(updateLastMessage(chatId, chatInfo, lastMessageData));
       }
       await batch.commit();

@@ -1,46 +1,34 @@
-// src/context/ChatContext.jsx
-import {
-  createContext,
-  useContext,
-  useReducer,
-} from "react";
-import { useAuth } from "./AuthContext"; // Pastikan path ini benar
+import { createContext, useContext, useReducer } from "react";
+import { useAuth } from "./AuthContext";
 
 export const ChatContext = createContext();
 
 export const ChatContextProvider = ({ children }) => {
   const { currentUser } = useAuth();
   
-  // STATE AWAL YANG BENAR (dengan isPinned dan isArchived)
   const INITIAL_STATE = {
     chatId: null,
-    user: {}, // Info user ATAU grup
-    isGroup: false, // Flag grup
-    isPinned: false, // <-- INI YANG HILANG
-    isArchived: false, // <-- INI YANG HILANG
+    user: {},
+    isGroup: false,
+    isPinned: false,
+    isArchived: false,
   };
 
   const chatReducer = (state, action) => {
     switch (action.type) {
       case "CHANGE_USER":
-        const payload = action.payload; // Payload sekarang SELALU objek chatInfo lengkap
-        
-        // Cek apakah ini grup
+        const payload = action.payload;
         if (payload.isGroup) {
           return {
-            user: payload.userInfo, // userInfo berisi info grup
-            chatId: payload.userInfo.uid, // uid adalah ID grup
+            user: payload.userInfo,
+            chatId: payload.userInfo.uid,
             isGroup: true,
-            isPinned: payload.isPinned || false, // <-- AMBIL STATUS PIN
-            isArchived: payload.isArchived || false, // <-- AMBIL STATUS ARSIP
+            isPinned: payload.isPinned || false,
+            isArchived: payload.isArchived || false,
           };
         } else {
-          // Logika untuk chat 1-on-1
-          // userInfo akan ada, baik dari ChatList, Search, atau handleTogglePin
-          const userInfo = payload.userInfo; 
-          
-          // Hitung chatID
-          const chatID = (currentUser.uid > userInfo.uid)
+          const userInfo = payload.userInfo;
+          const chatID = currentUser.uid > userInfo.uid
                 ? currentUser.uid + userInfo.uid
                 : userInfo.uid + currentUser.uid;
 
@@ -48,11 +36,10 @@ export const ChatContextProvider = ({ children }) => {
             user: userInfo, 
             chatId: chatID,
             isGroup: false,
-            isPinned: payload.isPinned || false, // <-- AMBIL STATUS PIN
-            isArchived: payload.isArchived || false, // <-- AMBIL STATUS ARSIP
+            isPinned: payload.isPinned || false,
+            isArchived: payload.isArchived || false,
           };
         }
-      
       case "RESET":
         return INITIAL_STATE;
       default:
@@ -69,7 +56,4 @@ export const ChatContextProvider = ({ children }) => {
   );
 };
 
-// Custom hook
-export const useChat = () => {
-  return useContext(ChatContext);
-};
+export const useChat = () => useContext(ChatContext);
