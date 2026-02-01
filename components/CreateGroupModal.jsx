@@ -1,5 +1,6 @@
 // src/components/CreateGroupModal.jsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import useFocusTrap from '../hooks/useFocusTrap';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import {
@@ -13,9 +14,11 @@ import {
   getDocs,
   addDoc
 } from 'firebase/firestore';
+import { indexChat } from '../utils/searchIndex';
 import { FiX, FiCamera, FiLoader, FiSearch, FiUserPlus, FiTrash2 } from 'react-icons/fi';
 // Gunakan CSS yang sama dengan ProfileModal untuk konsistensi
 import './ProfileModal.css'; 
+import useI18n from '../hooks/useI18n';
 
 // AMBIL KONFIGURASI DARI TEMPAT LAIN (atau isi manual lagi di sini)
 const CLOUDINARY_CLOUD_NAME = "dca2fjndp"; 
@@ -23,6 +26,7 @@ const CLOUDINARY_UPLOAD_PRESET = "message-app-preset";
 
 const CreateGroupModal = ({ show, onClose }) => {
   const { currentUser } = useAuth();
+    const { t } = useI18n();
   const [groupName, setGroupName] = useState('');
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -137,6 +141,11 @@ const CreateGroupModal = ({ show, onClose }) => {
         });
       }
 
+      // Update search index for the new group chat
+      try {
+        await indexChat(groupId, { isGroup: true, groupName: groupName, lastMessage: groupInfo.lastMessage, date: serverTimestamp() });
+      } catch (err) { console.error('indexChat after create group failed', err); }
+
       setIsLoading(false);
       resetForm();
       onClose(); // Tutup modal
@@ -171,14 +180,25 @@ const CreateGroupModal = ({ show, onClose }) => {
     }
   };
 
+  const overlayRef = useRef(null);
+  const nameRef = useRef(null);
+
+  useEffect(() => {
+    if (show) {
+      setTimeout(() => nameRef.current?.focus(), 0);
+    }
+  }, [show]);
+
+  useFocusTrap(overlayRef, show);
+
   if (!show) return null;
 
   return (
-    <div className="modal-overlay">
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="create-group-title" tabIndex={-1} ref={overlayRef} onKeyDown={(e) => { if (e.key === 'Escape') handleClose(); }}>
       <div className="modal-content">
         <div className="modal-header">
-          <h3>Buat Grup Baru</h3>
-          <button onClick={handleClose} className="modal-close-btn"><FiX /></button>
+          <h3 id="create-group-title">{t('createGroup')}</h3>
+          <button onClick={handleClose} className="modal-close-btn" aria-label="Close"><FiX /></button>
         </div>
         
         <div className="modal-body">
@@ -201,7 +221,7 @@ const CreateGroupModal = ({ show, onClose }) => {
             <div className="form-group" style={{ flex: 1 }}>
               <label htmlFor="groupName">Nama Grup</label>
               <input
-                id="groupName" type="text"
+                id="groupName" ref={nameRef} type="text"
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Nama grup Anda"
@@ -231,7 +251,7 @@ const CreateGroupModal = ({ show, onClose }) => {
               <div key={user.uid} className="search-result-item">
                 <img src={user.photoURL || `https://via.placeholder.com/30?text=${user.displayName[0]}`} alt={user.displayName} />
                 <span>{user.displayName}</span>
-                <button onClick={() => addMember(user)} className="add-member-btn">
+                <button onClick={() => addMember(user)} className="add-member-btn" aria-label={`Tambah ${user.displayName} ke grup`}>
                   <FiUserPlus />
                 </button>
               </div>
@@ -245,7 +265,7 @@ const CreateGroupModal = ({ show, onClose }) => {
               {selectedMembers.map(member => (
                 <div key={member.uid} className="member-tag">
                   <span>{member.displayName}</span>
-                  <button onClick={() => removeMember(member.uid)}>
+                  <button onClick={() => removeMember(member.uid)} aria-label={`Hapus ${member.displayName} dari daftar anggota`}>
                     <FiTrash2 size={12} />
                   </button>
                 </div>
@@ -254,10 +274,10 @@ const CreateGroupModal = ({ show, onClose }) => {
           )}
         </div>
 
-        <div className="modal-footer">
+          <div className="modal-footer">
           {error && <p className="error-message">{error}</p>}
           <button onClick={handleCreateGroup} className="primary" disabled={isLoading}>
-            {isLoading ? <FiLoader className="loading-spinner-btn" /> : 'Buat Grup'}
+            {isLoading ? <FiLoader className="loading-spinner-btn" /> : t('create')}
           </button>
         </div>
       </div>

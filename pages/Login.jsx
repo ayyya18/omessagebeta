@@ -7,6 +7,7 @@ import {
 } from "firebase/auth";
 import { auth, db } from '../firebase';
 import { doc, setDoc, query, where, getDocs, collection } from "firebase/firestore"; 
+import { indexUser } from '../utils/searchIndex';
 import './Login.css'; // Kita akan buat file CSS ini
 
 const Login = () => {
@@ -65,6 +66,9 @@ const Login = () => {
           handle: normalizedHandle,
           friends: [],
         });
+
+        // ensure user is indexed for search
+        try { await indexUser({ uid: res.user.uid, displayName: username, handle: normalizedHandle, photoURL: '' }); } catch (err) { console.error('indexUser after signup failed', err); }
 
         // Buat koleksi userChats untuknya
         await setDoc(doc(db, "userChats", res.user.uid), {});

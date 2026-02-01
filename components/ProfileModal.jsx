@@ -1,11 +1,14 @@
 // src/components/ProfileModal.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import useFocusTrap from '../hooks/useFocusTrap';
 import { useAuth } from '../context/AuthContext';
 import { db, auth } from '../firebase';
 import { doc, updateDoc, getDoc, query, where, getDocs, collection } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { FiX, FiCamera, FiLoader } from 'react-icons/fi';
 import './ProfileModal.css'; // Kita akan buat file CSS ini
+import { indexUser } from '../utils/searchIndex';
+import useI18n from '../hooks/useI18n';
 
 // Ambil config Cloudinary dari ChatHome (atau letakkan di file .env nanti)
 // NOTE: Ini hanya cara cepat, idealnya config ini ada di satu tempat
@@ -105,6 +108,11 @@ const ProfileModal = ({ show, onClose }) => {
         });
       }
 
+      // Update search index for this user
+      try {
+        await indexUser({ uid: currentUser.uid, displayName, handle: handle ? (handle.startsWith('@') ? handle : `@${handle}`) : '', photoURL: newPhotoURL });
+      } catch (err) { console.error('indexUser after profile update failed', err); }
+
       // TODO (Masa Depan): Update info ini di semua 'userChats' terkait
       
       setIsLoading(false);
@@ -121,16 +129,28 @@ const ProfileModal = ({ show, onClose }) => {
     }
   };
 
+  const overlayRef = useRef(null);
+  const firstInputRef = useRef(null);
+
+  useEffect(() => {
+    if (show) {
+      // focus first input when modal opens
+      setTimeout(() => { firstInputRef.current?.focus(); overlayRef.current?.focus(); }, 0);
+    }
+  }, [show]);
+
+  useFocusTrap(overlayRef, show);
+
   if (!show) {
     return null;
   }
 
   return (
-    <div className="modal-overlay">
+    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title" tabIndex={-1} ref={overlayRef} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
       <div className="modal-content">
         <div className="modal-header">
-          <h3>Atur Profil</h3>
-          <button onClick={onClose} className="modal-close-btn">
+          <h3 id="profile-modal-title">Atur Profil</h3>
+          <button onClick={onClose} className="modal-close-btn" aria-label="Close">
             <FiX />
           </button>
         </div>
@@ -160,6 +180,7 @@ const ProfileModal = ({ show, onClose }) => {
             <label htmlFor="displayName">Username</label>
             <input
               id="displayName"
+              ref={firstInputRef}
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}

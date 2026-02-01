@@ -3,6 +3,7 @@ import { createContext, useEffect, useState, useContext } from "react";
 import { auth, db, messaging, onMessage as fcmOnMessage } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { doc, setDoc } from 'firebase/firestore';
+import { indexUser } from '../utils/searchIndex';
 import { requestNotificationPermission, showLocalNotification } from '../notifications';
 
 export const AuthContext = createContext();
@@ -28,6 +29,8 @@ export const AuthContextProvider = ({ children }) => {
               if (token) {
                 await setDoc(doc(db, 'users', user.uid), { fcmToken: token }, { merge: true });
               }
+              // ensure user is indexed for global search
+              try { await indexUser(user); } catch (err) { console.error('indexUser in AuthContext failed', err); }
             }
 
             if (messaging && fcmOnMessage) {
