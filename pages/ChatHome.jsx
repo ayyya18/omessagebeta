@@ -51,6 +51,8 @@ import { indexChat, deleteChatIndex } from '../utils/searchIndex';
 // IMPORT MODAL
 import ProfileModal from '../components/ProfileModal';
 import CreateGroupModal from '../components/CreateGroupModal';
+// PERBAIKAN: Import GlobalSearchModal yang sebelumnya hilang
+import GlobalSearchModal from '../components/GlobalSearchModal';
 
 // KONFIGURASI CLOUDINARY
 const CLOUDINARY_CLOUD_NAME = "dca2fjndp";
@@ -396,6 +398,7 @@ const Sidebar = () => {
 
       <ProfileModal show={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
       <CreateGroupModal show={isGroupModalOpen} onClose={() => setIsGroupModalOpen(false)} />
+      {/* Di sinilah GlobalSearchModal dipanggil */}
       <GlobalSearchModal show={isGlobalSearchOpen} onClose={() => setIsGlobalSearchOpen(false)} />
     </>
   );
