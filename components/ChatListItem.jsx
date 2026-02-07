@@ -1,46 +1,89 @@
-import React from 'react';
-import { FiMapPin, FiArchive, FiTrash2 } from 'react-icons/fi';
+import React, { useRef, useState } from 'react';
+import { FiMapPin, FiArchive, FiTrash2, FiMoreHorizontal } from 'react-icons/fi';
 import Avatar from './Avatar';
+import ContextMenu from './ContextMenu';
 
 export default function ChatListItem({ chatId, chatInfo, isActive, onSelect, onTogglePin, onToggleArchive, onDelete }) {
+  const [contextMenu, setContextMenu] = useState({ isOpen: false, x: 0, y: 0 });
+  const moreBtnRef = useRef(null);
+
   const displayName = chatInfo.userInfo?.displayName || '';
   const lastText = chatInfo.lastMessage?.text || '';
 
-  const handleKey = (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onSelect(chatInfo);
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    setContextMenu({
+      isOpen: true,
+      x: e.clientX,
+      y: e.clientY
+    });
+  };
+
+  const menuActions = [
+    {
+      label: chatInfo.isPinned ? "Unpin Chat" : "Pin Chat",
+      icon: <FiMapPin />,
+      onClick: () => onTogglePin(chatId, chatInfo)
+    },
+    {
+      label: chatInfo.isArchived ? "Unarchive" : "Archive",
+      icon: <FiArchive />,
+      onClick: () => onToggleArchive(chatId, chatInfo)
+    },
+    {
+      label: "Delete Chat",
+      icon: <FiTrash2 />,
+      variant: "danger",
+      onClick: () => onDelete(chatId, chatInfo)
     }
+  ];
+
+  const handleMoreClick = (e) => {
+    e.stopPropagation();
+    const rect = moreBtnRef.current.getBoundingClientRect();
+    setContextMenu({
+      isOpen: true,
+      x: rect.right - 150, // Align slightly to the left of the button
+      y: rect.bottom + 5
+    });
   };
 
   return (
-    <div
-      className={`chat-item ${isActive ? 'active' : ''} ${chatInfo.isPinned && !chatInfo.isArchived ? 'pinned' : ''}`}
-      role="button"
-      tabIndex={0}
-      aria-label={`Buka obrolan dengan ${displayName}`}
-      aria-current={isActive ? 'true' : 'false'}
-      onClick={() => onSelect(chatInfo)}
-      onKeyDown={handleKey}
-    >
-      <div className="chat-item-actions">
-        <button className={`chat-action-btn pin-btn ${chatInfo.isPinned ? 'active' : ''}`} title="Pin chat" aria-label={chatInfo.isPinned ? 'Lepas pin obrolan' : 'Pin obrolan'} onClick={(e) => { e.stopPropagation(); onTogglePin(chatId, chatInfo); }}>
-          <FiMapPin size={14} />
-        </button>
-        <button className="chat-action-btn archive-btn" title="Archive chat" aria-label={chatInfo.isArchived ? 'Batalkan arsip' : 'Arsipkan obrolan'} onClick={(e) => { e.stopPropagation(); onToggleArchive(chatId, chatInfo); }}>
-          <FiArchive size={14} />
-        </button>
-        <button className="chat-action-btn delete-chat-btn" title="Hapus chat" aria-label={`Hapus obrolan dengan ${displayName}`} onClick={(e) => { e.stopPropagation(); onDelete(chatId, chatInfo); }}>
-          <FiTrash2 size={14} />
+    <>
+      <div
+        className={`chat-item ${isActive ? 'active' : ''} ${chatInfo.isPinned ? 'pinned' : ''}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelect(chatInfo)}
+        onContextMenu={handleContextMenu}
+      >
+        <Avatar src={chatInfo.userInfo.photoURL} alt={displayName} isGroup={chatInfo.isGroup} />
+
+        <div className="chat-info">
+          <div className="chat-info-top">
+            <span className="chat-name">{displayName}</span>
+            {chatInfo.isPinned && <FiMapPin size={12} className="pin-indicator" />}
+          </div>
+          <p className="chat-last-msg">{lastText}</p>
+        </div>
+
+        {/* 3-dot menu button for mouse users who don't right click */}
+        <button
+          ref={moreBtnRef}
+          className="chat-item-more-btn"
+          onClick={handleMoreClick}
+          aria-label="More options"
+        >
+          <FiMoreHorizontal />
         </button>
       </div>
 
-      <Avatar src={chatInfo.userInfo.photoURL} alt={displayName} isGroup={chatInfo.isGroup} />
-
-      <div className="chat-info">
-        <span className="chat-name">{displayName}</span>
-        <p className="chat-last-msg">{lastText}</p>
-      </div>
-    </div>
+      <ContextMenu
+        isOpen={contextMenu.isOpen}
+        position={{ x: contextMenu.x, y: contextMenu.y }}
+        onClose={() => setContextMenu({ ...contextMenu, isOpen: false })}
+        actions={menuActions}
+      />
+    </>
   );
 }

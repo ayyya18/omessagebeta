@@ -7,6 +7,7 @@ import { signOut } from 'firebase/auth';
 import './ChatHome.css';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
+import { useTheme } from '../context/ThemeContext';
 import useI18n from '../hooks/useI18n';
 import {
   collection,
@@ -36,7 +37,8 @@ import {
   FiSearch, FiSend, FiPaperclip, FiLoader, FiFile, FiUser, FiUsers, FiSmile,
   FiMoreVertical, FiEdit2, FiTrash2,
   FiCornerUpLeft, FiX, FiShare,
-  FiArchive, FiInbox, FiMapPin
+  FiArchive, FiInbox, FiMapPin,
+  FiSun, FiMoon, FiSettings
 } from 'react-icons/fi';
 
 import ChatBubble from '../components/ChatBubble';
@@ -51,8 +53,7 @@ import { indexChat, deleteChatIndex } from '../utils/searchIndex';
 // IMPORT MODAL
 import ProfileModal from '../components/ProfileModal';
 import CreateGroupModal from '../components/CreateGroupModal';
-// PERBAIKAN: Import GlobalSearchModal yang sebelumnya hilang
-import GlobalSearchModal from '../components/GlobalSearchModal';
+import SettingsModal from '../components/Settings/SettingsModal';
 
 // KONFIGURASI CLOUDINARY
 const CLOUDINARY_CLOUD_NAME = "dca2fjndp";
@@ -111,17 +112,17 @@ const Search = () => {
       console.warn('Must add friend before chatting');
       return; // UI logic handled by button visibility
     }
-    
+
     // ID kombinasi untuk chat 1-on-1
     const combinedId = currentUser.uid > user.uid ? currentUser.uid + user.uid : user.uid + currentUser.uid;
-    
+
     try {
       const res = await getDoc(doc(db, 'chats', combinedId));
-      let chatInfo; 
-      
+      let chatInfo;
+
       if (!res.exists()) {
         await setDoc(doc(db, 'chats', combinedId), { messages: [] });
-        
+
         const currentUserChatInfo = {
           userInfo: { uid: user.uid, displayName: user.displayName, photoURL: user.photoURL || '' },
           isGroup: false,
@@ -135,7 +136,7 @@ const Search = () => {
         await updateDoc(doc(db, 'userChats', currentUser.uid), {
           [combinedId]: currentUserChatInfo
         });
-        
+
         // Update userChats user lawan
         await updateDoc(doc(db, 'userChats', user.uid), {
           [combinedId + '.userInfo']: { uid: currentUser.uid, displayName: currentUser.displayName, photoURL: currentUser.photoURL || '' },
@@ -147,20 +148,20 @@ const Search = () => {
         });
         // Index the new direct chat for search
         try { await indexChat(combinedId, { isGroup: false, userInfo: currentUserChatInfo.userInfo, lastMessage: { text: '' }, date: serverTimestamp() }); } catch (err) { console.error('indexChat create direct chat failed', err); }
-        
+
         chatInfo = currentUserChatInfo;
       } else {
-         const userChatsDoc = await getDoc(doc(db, "userChats", currentUser.uid));
-         if(userChatsDoc.exists() && userChatsDoc.data()[combinedId]) {
-            chatInfo = userChatsDoc.data()[combinedId];
-         } else {
-             chatInfo = {
-                userInfo: { uid: user.uid, displayName: user.displayName, photoURL: user.photoURL || '' },
-                isGroup: false, isPinned: false, isArchived: false
-             };
-         }
+        const userChatsDoc = await getDoc(doc(db, "userChats", currentUser.uid));
+        if (userChatsDoc.exists() && userChatsDoc.data()[combinedId]) {
+          chatInfo = userChatsDoc.data()[combinedId];
+        } else {
+          chatInfo = {
+            userInfo: { uid: user.uid, displayName: user.displayName, photoURL: user.photoURL || '' },
+            isGroup: false, isPinned: false, isArchived: false
+          };
+        }
       }
-      
+
       dispatch({ type: 'CHANGE_USER', payload: chatInfo });
     } catch (err) { console.error("Gagal membuat/memilih chat:", err); }
     setUser(null); setUsername('');
@@ -204,7 +205,7 @@ const Search = () => {
 // ==========================================
 // 3. KOMPONEN CHAT LIST
 // ==========================================
-const ChatList = ({ showArchived }) => { 
+const ChatList = ({ showArchived }) => {
   const [allChats, setAllChats] = useState([]);
   const [chatSearch, setChatSearch] = useState('');
   const { currentUser } = useAuth();
@@ -269,7 +270,7 @@ const ChatList = ({ showArchived }) => {
       }
     }, (error) => {
       console.error("Error fetching chats: ", error);
-      setAllChats([]); 
+      setAllChats([]);
     });
     return () => unsub();
   }, [currentUser?.uid]);
@@ -280,19 +281,19 @@ const ChatList = ({ showArchived }) => {
     }
   };
 
-  const renderLastMessage = (msg) => { 
-    if (!msg) return "..."; 
-    if (msg.isDeleted) return "Pesan telah dihapus"; 
-    if (msg.forwardedFrom) { 
-      const content = msg.text || (msg.fileType === 'image' ? "🖼️ Foto" : (msg.fileType === 'video' ? "📹 Video" : "📄 File")); 
-      const snippet = content.length > 20 ? content.substring(0, 20) + '...' : content; 
-      return `Terusan: ${snippet}`; 
-    } 
-    if (msg.fileType === 'image') return "🖼️ Foto"; 
-    if (msg.fileType === 'video') return "📹 Video"; 
-    if (msg.fileType === 'raw' || msg.fileType === 'auto') return "📄 File"; 
-    if (msg.text) return msg.text; 
-    return "..."; 
+  const renderLastMessage = (msg) => {
+    if (!msg) return "...";
+    if (msg.isDeleted) return "Pesan telah dihapus";
+    if (msg.forwardedFrom) {
+      const content = msg.text || (msg.fileType === 'image' ? "🖼️ Foto" : (msg.fileType === 'video' ? "📹 Video" : "📄 File"));
+      const snippet = content.length > 20 ? content.substring(0, 20) + '...' : content;
+      return `Terusan: ${snippet}`;
+    }
+    if (msg.fileType === 'image') return "🖼️ Foto";
+    if (msg.fileType === 'video') return "📹 Video";
+    if (msg.fileType === 'raw' || msg.fileType === 'auto') return "📄 File";
+    if (msg.text) return msg.text;
+    return "...";
   }
 
   // Filter dan Urutkan Chat
@@ -301,14 +302,14 @@ const ChatList = ({ showArchived }) => {
     .filter(([chatId, chatInfo]) => showArchived ? chatInfo.isArchived === true : chatInfo.isArchived !== true)
     .sort(([, a], [, b]) => {
       if (!showArchived) {
-          if ((a.isPinned === true) && (b.isPinned !== true)) return -1; 
-          if ((a.isPinned !== true) && (b.isPinned === true)) return 1;
+        if ((a.isPinned === true) && (b.isPinned !== true)) return -1;
+        if ((a.isPinned !== true) && (b.isPinned === true)) return 1;
       }
-       const dateA = a.date?.toMillis ? a.date.toMillis() : 0;
-       const dateB = b.date?.toMillis ? b.date.toMillis() : 0;
-       return dateB - dateA; 
+      const dateA = a.date?.toMillis ? a.date.toMillis() : 0;
+      const dateB = b.date?.toMillis ? b.date.toMillis() : 0;
+      return dateB - dateA;
     });
-  
+
   const chatItems = sortedChats.map(([chatId, chatInfo]) => ({ chatId, chatInfo, displayName: chatInfo.userInfo?.displayName || '', lastText: chatInfo.lastMessage?.text || '' }));
   const fuse = new Fuse(chatItems, { keys: ['displayName', 'lastText'], threshold: 0.4 });
   const filtered = chatSearch.trim() ? fuse.search(chatSearch.trim()).map(r => r.item) : chatItems;
@@ -340,21 +341,18 @@ const ChatList = ({ showArchived }) => {
 };
 
 // ==========================================
-// 4. KOMPONEN SIDEBAR
+// 4. KOMPONEN DASHBOARD LAYOUT (SIDENAV + CHATLIST)
 // ==========================================
-const Sidebar = () => {
+
+const ChatSidebar = () => {
   const { currentUser } = useAuth();
   const { t } = useI18n();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem('ui-theme') || 'liquid');
-
-  useEffect(() => {
-    document.body.classList.toggle('classic', theme === 'classic');
-    localStorage.setItem('ui-theme', theme);
-  }, [theme]);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const onKey = (e) => {
@@ -367,42 +365,39 @@ const Sidebar = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const toggleTheme = () => setTheme((t) => t === 'liquid' ? 'classic' : 'liquid');
-
   const handleLogout = () => { signOut(auth); };
 
   return (
     <>
-      <div className="sidebar">
+      <div className="chat-sidebar-column">
         <div className="sidebar-header">
-           <div className="sidebar-header-top"> 
-             <h3>{t('appName')}</h3>
-             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-               <button onClick={() => setIsGlobalSearchOpen(true)} className="profile-btn" title={t('search')} aria-label="Buka pencarian global (Ctrl/Cmd+K)">🔎</button>
-               <button onClick={toggleTheme} className="profile-btn" title="Toggle theme" aria-label="Toggle theme">{theme === 'liquid' ? t('toggleThemeGlass') : t('toggleThemeClassic')}</button>
-               <button onClick={() => setIsGroupModalOpen(true)} className="profile-btn" title="Buat Grup Baru" aria-label="Buat Grup Baru"><FiUsers /></button>
-             </div>
-           </div>
-           <div className="user-profile"> <Avatar src={currentUser?.photoURL} alt={currentUser?.displayName || 'U'} size={24} /> <span className="user-profile-name">{currentUser?.displayName || 'User'}</span> <button onClick={() => setIsProfileModalOpen(true)} className="profile-btn" title="Atur Profil"><FiUser /></button> <button onClick={handleLogout} className="logout-btn" title={t('logout')}>{t('logout')}</button> </div>
+          <div className="sidebar-header-top">
+            <h3>{t('appName')}</h3>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button onClick={() => setIsGroupModalOpen(true)} className="profile-btn" title="New Group"><FiUsers size={18} /></button>
+            </div>
+          </div>
+
+          <Search />
         </div>
 
         <div className="archive-toggle-container">
-           <button onClick={() => setShowArchived(!showArchived)} className={`archive-toggle-btn ${showArchived ? 'active' : ''}`}>
-             {showArchived ? <><FiInbox size={18}/> Kembali ke Inbox</> : <><FiArchive size={18} /> Obrolan Diarsipkan</>}
-           </button>
+          {showArchived && <div className="archive-banner">Archived Chats</div>}
+          <button onClick={() => setShowArchived(!showArchived)} className={`archive-toggle-btn ${showArchived ? 'active' : ''}`}>
+            {showArchived ? <FiInbox size={16} /> : <FiArchive size={16} />}
+          </button>
         </div>
 
-        <Search />
         <ChatList showArchived={showArchived} />
-      </div>
 
-      <ProfileModal show={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
-      <CreateGroupModal show={isGroupModalOpen} onClose={() => setIsGroupModalOpen(false)} />
-      {/* Di sinilah GlobalSearchModal dipanggil */}
-      <GlobalSearchModal show={isGlobalSearchOpen} onClose={() => setIsGlobalSearchOpen(false)} />
+        <ProfileModal show={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+        <CreateGroupModal show={isGroupModalOpen} onClose={() => setIsGroupModalOpen(false)} />
+      </div>
     </>
   );
 };
+
+
 
 
 // ==========================================
@@ -415,7 +410,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
   const messagesEndRef = useRef(null);
   const liveRegionRef = useRef(null);
   const prevMessagesCountRef = useRef(0);
-  
+
   const [reactionPickerMsgId, setReactionPickerMsgId] = useState(null);
   const [menuOpenMsgId, setMenuOpenMsgId] = useState(null);
   const [editingMsgId, setEditingMsgId] = useState(null);
@@ -454,15 +449,15 @@ const MessageList = ({ setReplyingTo, onForward }) => {
     setReactionPickerMsgId(null);
     setMenuOpenMsgId(null);
     setEditingMsgId(null);
-    
+
     if (!data.chatId) {
       setMessages([]);
       return;
     }
-    
+
     const collectionPath = data.isGroup ? "groups" : "chats";
     const q = query(collection(db, collectionPath, data.chatId, "messages"), orderBy("createdAt"));
-    
+
     const unsub = onSnapshot(q, (querySnapshot) => {
       const newMessages = [];
       querySnapshot.forEach((doc) => {
@@ -488,7 +483,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
     }, (error) => {
       console.error("Error fetching messages:", error);
     });
-    
+
     return () => unsub();
   }, [data.chatId, data.isGroup]);
 
@@ -527,8 +522,8 @@ const MessageList = ({ setReplyingTo, onForward }) => {
             });
           }
         }
-          // update search index for this group
-          try { await indexChat(data.chatId, { isGroup: true, groupName: groupDoc.data().groupName || '', lastMessage: lastMessageData, date: serverTimestamp() }); } catch (err) { console.error('indexChat updateLastMessageForAll group', err); }
+        // update search index for this group
+        try { await indexChat(data.chatId, { isGroup: true, groupName: groupDoc.data().groupName || '', lastMessage: lastMessageData, date: serverTimestamp() }); } catch (err) { console.error('indexChat updateLastMessageForAll group', err); }
       } else {
         const userChatRefSelf = doc(db, "userChats", currentUser.uid);
         const userChatSnapSelf = await getDoc(userChatRefSelf);
@@ -610,7 +605,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
       if (!docSnap.exists() || docSnap.data().isDeleted) return;
       const reactions = docSnap.data().reactions || {};
       const userList = reactions[emoji] || [];
-      
+
       if (userList.includes(currentUser.uid)) {
         await updateDoc(msgRef, { [reactionKey]: arrayRemove(currentUser.uid) });
         // Cleanup jika kosong (opsional)
@@ -618,7 +613,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
         const updatedReactions = updatedSnap.data()?.reactions || {};
         const updatedList = updatedReactions[emoji];
         if (updatedList && updatedList.length === 0 && updatedReactions.hasOwnProperty(emoji)) {
-           await updateDoc(msgRef, { [reactionKey]: FieldValue.delete() });
+          await updateDoc(msgRef, { [reactionKey]: FieldValue.delete() });
         }
       } else {
         await updateDoc(msgRef, { [reactionKey]: arrayUnion(currentUser.uid) });
@@ -723,10 +718,10 @@ const MessageList = ({ setReplyingTo, onForward }) => {
                 <FiMoreVertical />
               </button>
             )}
-            
+
             {menuOpenMsgId === msg.id && (
               <div className="message-menu" ref={menuRef} role="menu" aria-label="Menu pesan">
-                <button role="menuitem" aria-label="Teruskan pesan" onClick={() => {onForward(msg); setMenuOpenMsgId(null);}}><FiShare /> Teruskan</button>
+                <button role="menuitem" aria-label="Teruskan pesan" onClick={() => { onForward(msg); setMenuOpenMsgId(null); }}><FiShare /> Teruskan</button>
                 {msg.senderId === currentUser.uid && msg.text && !msg.fileURL && (
                   <button role="menuitem" aria-label="Edit pesan" onClick={() => openEditMode(msg)}><FiEdit2 /> Edit</button>
                 )}
@@ -735,7 +730,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
                 )}
               </div>
             )}
-            
+
             <div className="message-bubble">
               {!msg.isDeleted && !editingMsgId && (
                 <button className="reply-btn" title="Balas" aria-label="Balas pesan" onClick={() => handleReply(msg)}>
@@ -747,7 +742,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
                   <FiSmile />
                 </button>
               )}
-              
+
               {reactionPickerMsgId === msg.id && (
                 <ReactionPicker
                   onSelect={(emojiObject) => handleReaction(emojiObject, msg)}
@@ -755,7 +750,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
                   pickerStyle={{ width: 250, height: 200 }}
                 />
               )}
-              
+
               {editingMsgId === msg.id ? (
                 <MessageEditor msg={msg} />
               ) : (
@@ -771,7 +766,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
                 </>
               )}
             </div>
-            
+
             <RenderReactionsClickable reactions={msg.reactions} msg={msg} />
           </div>
         </div>
@@ -862,10 +857,10 @@ const SendForm = ({ replyingTo, setReplyingTo }) => {
       if (isTyping) {
         await setDoc(typingDocRef, { [currentUser.uid]: currentUser.displayName || 'User' }, { merge: true });
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(async () => { try { await updateDoc(typingDocRef, { [currentUser.uid]: FieldValue.delete() }); } catch (e) {} }, 3000);
+        typingTimeoutRef.current = setTimeout(async () => { try { await updateDoc(typingDocRef, { [currentUser.uid]: FieldValue.delete() }); } catch (e) { } }, 3000);
       } else {
         if (typingTimeoutRef.current) { clearTimeout(typingTimeoutRef.current); typingTimeoutRef.current = null; }
-        try { await updateDoc(typingDocRef, { [currentUser.uid]: FieldValue.delete() }); } catch (e) {}
+        try { await updateDoc(typingDocRef, { [currentUser.uid]: FieldValue.delete() }); } catch (e) { }
       }
     } catch (err) { }
   };
@@ -900,27 +895,27 @@ const SendForm = ({ replyingTo, setReplyingTo }) => {
     } catch (err) { console.error('Error mengirim pesan: ', err); }
 
     setText(''); setFile(null); setReplyingTo(null); if (document.getElementById('file-upload')) document.getElementById('file-upload').value = null; setIsUploading(false);
-    try { if (data.chatId && currentUser?.uid) await updateDoc(doc(db, 'typing', data.chatId), { [currentUser.uid]: FieldValue.delete() }); } catch (e) {}
+    try { if (data.chatId && currentUser?.uid) await updateDoc(doc(db, 'typing', data.chatId), { [currentUser.uid]: FieldValue.delete() }); } catch (e) { }
   };
 
-  const ReplyPreview = () => { 
-    if (!replyingTo) return null; 
-    let icon = null; 
-    if (replyingTo.fileType === 'image') icon = '🖼️ '; 
-    else if (replyingTo.fileType === 'video') icon = '📹 '; 
-    else if (replyingTo.fileType === 'raw' || replyingTo.fileType === 'auto') icon = '📄 '; 
-    return ( 
-      <div className="reply-preview"> 
-        <div className="reply-preview-content"> 
-          <FiCornerUpLeft className="reply-icon" /> 
-          <div className="reply-text"> 
-            <div className="reply-sender">Membalas kepada {replyingTo.senderName}</div> 
-            <div className="reply-snippet">{icon}{replyingTo.textSnippet}</div> 
-          </div> 
-        </div> 
-        <button onClick={() => setReplyingTo(null)} className="cancel-reply-btn"><FiX /></button> 
-      </div> 
-    ); 
+  const ReplyPreview = () => {
+    if (!replyingTo) return null;
+    let icon = null;
+    if (replyingTo.fileType === 'image') icon = '🖼️ ';
+    else if (replyingTo.fileType === 'video') icon = '📹 ';
+    else if (replyingTo.fileType === 'raw' || replyingTo.fileType === 'auto') icon = '📄 ';
+    return (
+      <div className="reply-preview">
+        <div className="reply-preview-content">
+          <FiCornerUpLeft className="reply-icon" />
+          <div className="reply-text">
+            <div className="reply-sender">Membalas kepada {replyingTo.senderName}</div>
+            <div className="reply-snippet">{icon}{replyingTo.textSnippet}</div>
+          </div>
+        </div>
+        <button onClick={() => setReplyingTo(null)} className="cancel-reply-btn"><FiX /></button>
+      </div>
+    );
   };
 
   return (
@@ -986,30 +981,30 @@ const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
 
   // Helper update last message khusus forward
   const updateLastMessage = async (targetChatId, targetChatInfo, lastMessageData) => {
-      // Sama seperti updateLastMessageForAll tapi bisa target spesifik
-      const collectionPath = targetChatInfo.isGroup ? 'groups' : 'chats';
-      try {
-        if (targetChatInfo.isGroup) {
-          const groupDoc = await getDoc(doc(db, 'groups', targetChatId));
-          if (!groupDoc.exists()) return;
-          const members = groupDoc.data().members || [];
-          for (const uid of members) {
-             const userChatDocRef = doc(db, 'userChats', uid);
-             await updateDoc(userChatDocRef, { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() });
-          }
-          // update search index for group
-          try { await indexChat(targetChatId, { isGroup: true, groupName: groupDoc.data().groupName || '', lastMessage: lastMessageData, date: serverTimestamp() }); } catch (err) { console.error('indexChat group update', err); }
-        } else {
-          // Update diri sendiri
-          await updateDoc(doc(db, 'userChats', currentUser.uid), { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() });
-           // Update lawan
-           if (targetChatInfo.userInfo && targetChatInfo.userInfo.uid) {
-             await updateDoc(doc(db, 'userChats', targetChatInfo.userInfo.uid), { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() });
-           }
-           // update search index for direct chat
-           try { await indexChat(targetChatId, { userInfo: targetChatInfo.userInfo, isGroup: false, lastMessage: lastMessageData, date: Date.now() }); } catch (err) { console.error('indexChat direct chat update', err); }
+    // Sama seperti updateLastMessageForAll tapi bisa target spesifik
+    const collectionPath = targetChatInfo.isGroup ? 'groups' : 'chats';
+    try {
+      if (targetChatInfo.isGroup) {
+        const groupDoc = await getDoc(doc(db, 'groups', targetChatId));
+        if (!groupDoc.exists()) return;
+        const members = groupDoc.data().members || [];
+        for (const uid of members) {
+          const userChatDocRef = doc(db, 'userChats', uid);
+          await updateDoc(userChatDocRef, { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() });
         }
-      } catch (err) { console.error(err); }
+        // update search index for group
+        try { await indexChat(targetChatId, { isGroup: true, groupName: groupDoc.data().groupName || '', lastMessage: lastMessageData, date: serverTimestamp() }); } catch (err) { console.error('indexChat group update', err); }
+      } else {
+        // Update diri sendiri
+        await updateDoc(doc(db, 'userChats', currentUser.uid), { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() });
+        // Update lawan
+        if (targetChatInfo.userInfo && targetChatInfo.userInfo.uid) {
+          await updateDoc(doc(db, 'userChats', targetChatInfo.userInfo.uid), { [`${targetChatId}.lastMessage`]: lastMessageData, [`${targetChatId}.date`]: serverTimestamp() });
+        }
+        // update search index for direct chat
+        try { await indexChat(targetChatId, { userInfo: targetChatInfo.userInfo, isGroup: false, lastMessage: lastMessageData, date: Date.now() }); } catch (err) { console.error('indexChat direct chat update', err); }
+      }
+    } catch (err) { console.error(err); }
   };
 
   const handleForward = async () => {
@@ -1037,16 +1032,16 @@ const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
   };
 
   if (!show || !messageToForward) return null;
-  
-  const renderForwardPreview = (msg) => { 
-    let content; 
-    switch (msg.fileType) { 
-      case 'image': content = (<> <img src={msg.fileURL} alt="Preview" className="message-image small-preview" /> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break; 
-      case 'video': content = (<> <video src={msg.fileURL} className="message-video small-preview" /> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break; 
-      case 'raw': case 'auto': content = (<> <div className="message-file small-preview"> <FiFile size={18} /> <span>{msg.fileName || 'File'}</span> </div> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break; 
-      default: content = <p className="message-text small-preview">{msg.text}</p>; break; 
-    } 
-    return <div className="forward-preview-bubble">{content}</div>; 
+
+  const renderForwardPreview = (msg) => {
+    let content;
+    switch (msg.fileType) {
+      case 'image': content = (<> <img src={msg.fileURL} alt="Preview" className="message-image small-preview" /> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break;
+      case 'video': content = (<> <video src={msg.fileURL} className="message-video small-preview" /> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break;
+      case 'raw': case 'auto': content = (<> <div className="message-file small-preview"> <FiFile size={18} /> <span>{msg.fileName || 'File'}</span> </div> {msg.text && <p className="message-text caption small-preview">{msg.text}</p>} </>); break;
+      default: content = <p className="message-text small-preview">{msg.text}</p>; break;
+    }
+    return <div className="forward-preview-bubble">{content}</div>;
   };
 
   return (
@@ -1058,7 +1053,7 @@ const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
           <div className="forward-chat-list">
             {isLoading && chats.length === 0 && <p className="no-chats">Memuat...</p>}
             {!isLoading && chats.length === 0 && <p className="no-chats">Tidak ada obrolan.</p>}
-            {chats.map(([chatId, chatInfo]) => ( <div key={chatId} className={`forward-chat-item ${selectedChats.includes(chatId) ? 'selected' : ''}`} onClick={() => handleSelectChat(chatId)}> <Avatar src={chatInfo.userInfo.photoURL} alt={chatInfo.userInfo.displayName} size={40} isGroup={chatInfo.isGroup} /> <span className="forward-chat-name">{chatInfo.userInfo.displayName}</span> <div className={`checkbox ${selectedChats.includes(chatId) ? 'checked' : ''}`}></div> </div> ))}
+            {chats.map(([chatId, chatInfo]) => (<div key={chatId} className={`forward-chat-item ${selectedChats.includes(chatId) ? 'selected' : ''}`} onClick={() => handleSelectChat(chatId)}> <Avatar src={chatInfo.userInfo.photoURL} alt={chatInfo.userInfo.displayName} size={40} isGroup={chatInfo.isGroup} /> <span className="forward-chat-name">{chatInfo.userInfo.displayName}</span> <div className={`checkbox ${selectedChats.includes(chatId) ? 'checked' : ''}`}></div> </div>))}
           </div>
         </div>
         <div className="modal-footer"> {error && <p className="error-message">{error}</p>} <button aria-label={`Kirim ke ${selectedChats.length} tujuan`} onClick={handleForward} className="primary" disabled={isLoading || selectedChats.length === 0}> {isLoading ? <FiLoader className="loading-spinner-btn" /> : `Kirim ke ${selectedChats.length} tujuan`} </button> </div>
@@ -1071,9 +1066,9 @@ const ForwardMessageModal = ({ show, onClose, messageToForward }) => {
 // 8. KOMPONEN CHAT WINDOW
 // ==========================================
 const ChatWindow = () => {
-  const { data, dispatch } = useChat(); 
-  const { currentUser } = useAuth(); 
-  
+  const { data, dispatch } = useChat();
+  const { currentUser } = useAuth();
+
   const [replyingTo, setReplyingTo] = useState(null);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
@@ -1081,12 +1076,12 @@ const ChatWindow = () => {
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const headerMenuRef = useRef(null);
   const [typingUsers, setTypingUsers] = useState([]);
-  
+
   useEffect(() => {
     setReplyingTo(null);
     setMessageToForward(null);
     setShowForwardModal(false);
-    setIsHeaderMenuOpen(false); 
+    setIsHeaderMenuOpen(false);
   }, [data.chatId]);
 
   useEffect(() => {
@@ -1125,7 +1120,7 @@ const ChatWindow = () => {
       }
     };
     if (isHeaderMenuOpen) {
-       document.addEventListener('click', handleClickOutside);
+      document.addEventListener('click', handleClickOutside);
     }
     return () => document.removeEventListener('click', handleClickOutside);
   }, [isHeaderMenuOpen]);
@@ -1139,20 +1134,20 @@ const ChatWindow = () => {
   const typingFull = typingUsers.join(', ');
 
   const handleOpenForwardModal = (message) => { setMessageToForward(message); setShowForwardModal(true); };
-  
+
   const handleTogglePin = async () => {
     if (!data.chatId || !currentUser?.uid) return;
     const userChatRef = doc(db, 'userChats', currentUser.uid);
     const newPinnedStatus = !data.isPinned;
     try {
       await updateDoc(userChatRef, {
-        [`${data.chatId}.isPinned`]: newPinnedStatus 
+        [`${data.chatId}.isPinned`]: newPinnedStatus
       });
       const newPayload = {
-         userInfo: data.user,
-         isGroup: data.isGroup,
-         isPinned: newPinnedStatus, 
-         isArchived: data.isArchived 
+        userInfo: data.user,
+        isGroup: data.isGroup,
+        isPinned: newPinnedStatus,
+        isArchived: data.isArchived
       };
       dispatch({ type: "CHANGE_USER", payload: newPayload });
     } catch (error) {
@@ -1167,30 +1162,30 @@ const ChatWindow = () => {
     const newArchivedStatus = !data.isArchived;
     try {
       const updates = {
-         [`${data.chatId}.isArchived`]: newArchivedStatus 
+        [`${data.chatId}.isArchived`]: newArchivedStatus
       };
       if (newArchivedStatus) {
-          updates[`${data.chatId}.isPinned`] = false;
+        updates[`${data.chatId}.isPinned`] = false;
       }
       await updateDoc(userChatRef, updates);
-      dispatch({ type: "RESET" }); 
+      dispatch({ type: "RESET" });
     } catch (error) {
       console.error("Error toggling archive:", error);
     }
-    setIsHeaderMenuOpen(false); 
+    setIsHeaderMenuOpen(false);
   };
 
-  if (!data.chatId) { return ( <div className="chat-window placeholder"> <div className="placeholder-content"> <FiSend size={50} /> <h2>Selamat Datang!</h2> <p>Pilih obrolan atau buat grup baru untuk memulai.</p> </div> </div> ); }
-  
+  if (!data.chatId) { return (<div className="chat-window placeholder"> <div className="placeholder-content"> <FiSend size={50} /> <h2>Selamat Datang!</h2> <p>Pilih obrolan atau buat grup baru untuk memulai.</p> </div> </div>); }
+
   return (
     <>
       <div className="chat-window">
         <div className="chat-header">
-          <Avatar 
-            src={data.user?.photoURL} 
-            alt={data.user?.displayName || 'C'} 
-            size={40} 
-            isGroup={data.isGroup} 
+          <Avatar
+            src={data.user?.photoURL}
+            alt={data.user?.displayName || 'C'}
+            size={40}
+            isGroup={data.isGroup}
           />
           <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3>
           {typingUsers && typingUsers.length > 0 && (
@@ -1217,11 +1212,11 @@ const ChatWindow = () => {
             {isHeaderMenuOpen && (
               <div className="chat-header-menu" ref={headerMenuRef} role="menu" aria-label="Menu Obrolan">
                 <button role="menuitem" aria-label={data.isArchived ? 'Batal arsip obrolan' : 'Arsipkan obrolan'} onClick={handleToggleArchive}>
-                  {data.isArchived ? <><FiInbox size={16}/> Batal Arsip</> : <><FiArchive size={16}/> Arsipkan</>}
+                  {data.isArchived ? <><FiInbox size={16} /> Batal Arsip</> : <><FiArchive size={16} /> Arsipkan</>}
                 </button>
                 {!data.isArchived && (
                   <button role="menuitem" aria-label={data.isPinned ? 'Lepas pin obrolan' : 'Pin obrolan'} onClick={handleTogglePin}>
-                    {data.isPinned ? <> <FiX className="unpin-icon" size={16}/> Lepas Pin</> : <><FiMapPin size={16}/> Pin Obrolan</>}
+                    {data.isPinned ? <> <FiX className="unpin-icon" size={16} /> Lepas Pin</> : <><FiMapPin size={16} /> Pin Obrolan</>}
                   </button>
                 )}
               </div>
@@ -1239,13 +1234,23 @@ const ChatWindow = () => {
 // ==========================================
 // 9. MAIN COMPONENT
 // ==========================================
-const ChatHome = () => { 
-  return ( 
-    <div className="chat-home-container"> 
-      <Sidebar /> 
-      <ChatWindow /> 
-    </div> 
-  ); 
+
+
+
+import DashboardLayout from '../components/DashboardLayout';
+
+// ... (ChatSidebar definition remains)
+
+// ==========================================
+// 9. MAIN COMPONENT
+// ==========================================
+const ChatHome = () => {
+  return (
+    <DashboardLayout
+      sidebar={<ChatSidebar />}
+      content={<ChatWindow />}
+    />
+  );
 };
 
 export default ChatHome;
