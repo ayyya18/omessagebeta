@@ -1,0 +1,2 @@
+.reaction-picker-popup { position: absolute; z-index: 60; top: -220px; right: 0; box-shadow: var(--shadow); border-radius: 8px; overflow: hidden; }
+.reaction-picker-popup .emoji-picker-react { box-shadow: none !important; border: none !important; }

@@ -1,0 +1,60 @@
+/* src/pages/Login.css */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: transparent;
+}
+
+.login-box {
+  background: var(--card-bg);
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.login-box h2 {
+  color: var(--primary-dark);
+  margin-bottom: 8px;
+}
+
+.login-box p {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.login-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-box button {
+  margin-top: 8px;
+}
+
+.error-message {
+  color: #e53e3e;
+  /* Merah */
+  font-size: 0.9rem;
+  margin-bottom: 0 !important;
+}
+
+.toggle-auth {
+  margin-top: 24px !important;
+  font-size: 0.9rem;
+}
+
+.toggle-auth span {
+  color: var(--primary-color);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle-auth span:hover {
+  text-decoration: underline;
+}

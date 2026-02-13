@@ -1,0 +1,312 @@
+/* src/pages/Calendar.css */
+
+.calendar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+}
+
+.nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.nav-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.nav-btn.active {
+    background: var(--card-bg);
+    border-color: var(--glass-border);
+    color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.calendar-main-area {
+    padding: 24px;
+    overflow-y: auto;
+    height: 100vh;
+}
+
+.cal-view {
+    animation: fadeIn 0.3s ease;
+}
+
+.view-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.view-header h2 {
+    color: var(--text-primary);
+    font-size: 1.8rem;
+}
+
+/* Timeline View */
+.timeline-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.timeline-item {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    /* Increased width for date info */
+    gap: 16px;
+    padding-left: 12px;
+    border-left: 4px solid #ccc;
+    position: relative;
+}
+
+.time-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 4px;
+}
+
+.date-display {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    line-height: 1.2;
+}
+
+.time-range {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.timeline-item .content {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    padding: 16px;
+    border-radius: 12px;
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.content-main {
+    flex: 1;
+}
+
+.edit-task-btn {
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.edit-task-btn:hover {
+    opacity: 1;
+    background: var(--hover-bg);
+}
+
+.category-tag {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-top: 8px;
+    text-transform: uppercase;
+}
+
+/* Gantt View */
+.gantt-chart {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.gantt-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.gantt-label {
+    width: 150px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.gantt-bar-container {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    height: 30px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+}
+
+.gantt-bar {
+    height: 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Analytics View */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.analytics-card {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    padding: 24px;
+    border-radius: 16px;
+    text-align: center;
+}
+
+.big-number {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    margin: 16px 0;
+}
+
+.text-danger {
+    color: #EF4444;
+}
+
+/* Dashboard Layout Overrides for Generic Content */
+.dashboard-container {
+    /* Ensure generic content fills space */
+}
+
+/* Calendar Top Bar */
+.cal-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.cal-date-nav {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.cal-date-nav h2 {
+    margin: 0;
+    font-size: 1.8rem;
+    min-width: 250px;
+}
+
+.nav-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.view-switcher {
+    display: flex;
+    background: var(--input-bg);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--glass-border);
+}
+
+.view-switcher button {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-switcher button.active {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-weight: 600;
+}
+
+/* Sidebar Filters */
+.cal-filters {
+    padding: 24px 16px;
+}
+
+.cal-filters h4 {
+    margin: 0 0 16px 0;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+}
+
+.filter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 4px 0;
+    color: var(--text-secondary);
+    transition: color 0.2s;
+}
+
+.filter-item:hover {
+    color: var(--text-primary);
+}
+
+.checkbox {
+    width: 20px;
+    height: 20px;
+    border: 2px solid;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.checkbox.checked {
+    border-color: transparent;
+}
+
+/* Mini Calendar */
+.mini-calendar-container {
+    padding: 16px;
+}
+
+.cal-content-wrapper {
+    height: calc(100% - 80px);
+    /* Adjust based on top bar height */
+    overflow-y: hidden;
+    /* Each view manages its own scroll if needed */
+}

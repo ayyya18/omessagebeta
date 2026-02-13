@@ -1,0 +1,358 @@
+/* src/pages/Workspace/Workspace.css */
+
+/* Main Layout */
+.workspace-container {
+    padding: 24px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.workspace-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.workspace-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.workspace-header p {
+    color: var(--text-secondary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 16px;
+}
+
+/* Statistics Row */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    padding: 20px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-color);
+}
+
+.stat-card.primary-stat {
+    background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+    color: white;
+    border: none;
+}
+
+.stat-card.primary-stat .stat-info h3,
+.stat-card.primary-stat .stat-info p {
+    color: white;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-info h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.stat-info p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 4px 0 0 0;
+}
+
+/* Projects Section */
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.project-card {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    backdrop-filter: blur(10px);
+}
+
+.project-card-header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.project-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3B82F6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.project-meta h4 {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.project-meta span {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.progress-bar {
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    margin: 16px 0 8px 0;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #10B981;
+    border-radius: 3px;
+}
+
+.project-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.member-stack {
+    display: flex;
+    align-items: center;
+}
+
+.member-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--card-bg);
+    margin-left: -8px;
+    background: #ddd;
+}
+
+.member-avatar:first-child {
+    margin-left: 0;
+}
+
+/* Today's Tasks */
+.task-today-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.task-item {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    padding: 16px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.task-left {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.task-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(59, 130, 246, 0.1);
+    color: #3B82F6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.task-time h5 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.task-time span {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.task-details h4 {
+    margin: 0 0 4px 0;
+    color: var(--text-primary);
+}
+
+.task-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* Right Sidebar specific to Workspace */
+.workspace-right-sidebar {
+    padding: 24px;
+    border-left: 1px solid var(--glass-border);
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.progress-circle-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.circle-chart {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    margin-bottom: 16px;
+    background: conic-gradient(#EF4444 0% 61%, var(--bg-secondary) 61% 100%);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.circle-inner {
+    width: 130px;
+    height: 130px;
+    background: var(--bg-color);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.circle-inner h2 {
+    font-size: 2rem;
+    margin: 0;
+    color: #EF4444;
+}
+
+.upcoming-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.upcoming-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.upcoming-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Responsive Grid Layout */
+.workspace-grid-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+@media (max-width: 1024px) {
+    .workspace-grid-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .workspace-right-column {
+        display: none;
+        /* or stack it below? stacking is better usually, but right sidebar often secondary */
+    }
+}
+
+@media (max-width: 768px) {
+    .workspace-content-area {
+        padding: 16px !important;
+    }
+
+    .workspace-header {
+        padding: 16px !important;
+        align-items: flex-start !important;
+    }
+
+    .workspace-header h1 {
+        font-size: 1.5rem;
+    }
+
+    /* Workspace tabs scrollable */
+    .workspace-tabs {
+        overflow-x: auto;
+        padding-bottom: 8px !important;
+        width: 100%;
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .workspace-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .workspace-tabs button {
+        white-space: nowrap;
+        padding: 8px 16px !important;
+        font-size: 0.85rem !important;
+    }
+}
