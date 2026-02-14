@@ -346,6 +346,68 @@
   border-color: var(--primary-color);
 }
 
+/* Floating Action Buttons (FABs) */
+.chat-fab-container {
+  display: none;
+  /* Hidden on desktop */
+}
+
+@media (max-width: 1024px) {
+  .sidebar-footer {
+    display: none;
+    /* Hide old footer on mobile */
+  }
+
+  .chat-fab-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: fixed;
+    bottom: 80px;
+    /* Above bottom navigation */
+    right: 20px;
+    z-index: 100;
+  }
+
+  .chat-fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+      0 2px 4px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(12px);
+  }
+
+  .chat-fab:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4),
+      0 3px 6px rgba(0, 0, 0, 0.25);
+  }
+
+  .chat-fab.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    box-shadow: 0 6px 16px rgba(104, 211, 145, 0.4),
+      0 3px 6px rgba(104, 211, 145, 0.3);
+  }
+
+  .chat-fab.active:hover {
+    background: var(--primary-color);
+    filter: brightness(1.1);
+  }
+}
+
 .archive-banner {
   background: rgba(255, 200, 0, 0.1);
   color: #fbbf24;
@@ -414,7 +476,7 @@
 }
 
 .chat-header {
-  padding: 16px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--glass-border);
   background: var(--card-bg);
   box-shadow: none;
@@ -423,18 +485,113 @@
   align-items: center;
   gap: 12px;
   position: relative;
-  border-radius: 12px;
+  border-radius: 0;
+  /* Remove rounded corners */
+  flex-shrink: 0;
+  /* Prevent shrinking */
 }
 
 /* --- CSS BARU --- */
-.chat-header h3 {
+/* --- CSS BARU --- */
+.chat-header-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  margin-left: 10px;
+  height: 100%;
+  /* Fill header height */
+}
+
+.chat-header-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  margin-bottom: 2px;
+  /* Minimal gap before status/members */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text-primary);
-  font-weight: 600;
+  line-height: 1.2;
 }
+
+.chat-header-group-details {
+  font-size: 0.775rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  justify-content: center;
+  margin-top: 2px;
+  /* Minimal gap from group name */
+}
+
+.chat-header-status {
+  font-size: 0.775rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  justify-content: center;
+  margin-top: 2px;
+  /* Minimal gap from user name */
+}
+
+.status-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-text.online {
+  color: #4ade80;
+  /* Green for Online */
+}
+
+.status-text.offline {
+  color: var(--text-muted);
+}
+
+.group-members-list {
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+}
+
+.group-online-count {
+  font-size: 0.75rem;
+  color: #4ade80;
+  /* Green count */
+  margin-top: 2px;
+}
+
+.typing-text-active {
+  color: var(--primary-color);
+  font-style: italic;
+  font-size: 0.8rem;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
+}
+
+/* Override old h3 if any */
+
 
 /* Typing indicator in header */
 .typing-indicator {
@@ -2018,12 +2175,8 @@
     align-items: center;
   }
 
-  .chat-header h3 {
-    flex-basis: 100%;
-  }
 
   .typing-indicator {
-    flex-basis: 100%;
     margin-left: 0;
     margin-top: 6px;
   }
@@ -2067,11 +2220,6 @@
 
   /* Hide default Navigation Sidebar (handled by utility class usually, but ensure here) */
   .nav-sidebar {
-    display: none !important;
-  }
-
-  /* Hide chat window on mobile - show only chat list */
-  .chat-window {
     display: none !important;
   }
 
@@ -2500,4 +2648,11 @@
 .chat-search-results .chat-list {
   padding: 0;
   /* Remove padding if list itself has it */
+}
+
+/* Mobile: Hide chat window when no chat is selected */
+@media (max-width: 1024px) {
+  .mobile-hidden {
+    display: none !important;
+  }
 }

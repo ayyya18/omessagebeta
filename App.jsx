@@ -27,9 +27,14 @@ const CalendarHome = lazy(() => import("./pages/CalendarHome"));
 const DashboardHome = lazy(() => import("./pages/DashboardHome"));
 const WorkspaceHome = lazy(() => import("./pages/Workspace/WorkspaceHome"));
 
+import usePresence from "./hooks/usePresence";
+
 function App() {
   const { currentUser, loading } = useAuth();
   const [showSearch, setShowSearch] = useState(false);
+
+  // Activate Presence System
+  usePresence();
 
   // Global keyboard shortcut for search (Cmd+K / Ctrl+K)
   useEffect(() => {

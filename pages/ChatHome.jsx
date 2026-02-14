@@ -1,9 +1,8 @@
-// src/pages/ChatHome.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import Avatar from '../components/Avatar';
 import ChatListItem from '../components/ChatListItem';
-import { auth, db } from '../firebase';
+import { auth, db, dbRealtime } from '../firebase';
 import { signOut } from 'firebase/auth';
 import './DashboardHome.css';
 import './ChatHome.css';
@@ -31,7 +30,115 @@ import {
   arrayRemove,
   writeBatch
 } from 'firebase/firestore';
+import { ref, onValue } from 'firebase/database';
 
+// Helper component for Header Info
+const ChatHeaderInfo = ({ data, typingUsers, typingText }) => {
+  const [status, setStatus] = useState(null);
+  const [groupMembers, setGroupMembers] = useState([]);
+  const { currentUser } = useAuth();
+
+  // Listen to status for Direct Chat
+  useEffect(() => {
+    if (data.isGroup || !data.user?.uid) {
+      setStatus(null);
+      return;
+    }
+
+    const statusRef = ref(dbRealtime, `/status/${data.user.uid}`);
+    const unsubscribe = onValue(statusRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setStatus(snapshot.val());
+      } else {
+        setStatus({ state: 'offline' });
+      }
+    });
+
+    return () => unsubscribe();
+  }, [data.chatId, data.user?.uid, data.isGroup]);
+
+  // Fetch group members (without online status)
+  useEffect(() => {
+    if (!data.isGroup || !data.chatId) {
+      setGroupMembers([]);
+      return;
+    }
+
+    const fetchGroupInfo = async () => {
+      try {
+        const groupDoc = await getDoc(doc(db, 'groups', data.chatId));
+        if (groupDoc.exists()) {
+          const memberIds = groupDoc.data().members || [];
+          // Filter out current user
+          const otherMemberIds = memberIds.filter(id => id !== currentUser.uid);
+
+          // Fetch member profiles
+          if (otherMemberIds.length > 0) {
+            const usersQuery = query(collection(db, 'users'), where('uid', 'in', otherMemberIds.slice(0, 10))); // Limit 10
+            const userSnaps = await getDocs(usersQuery);
+            const names = userSnaps.docs.map(d => d.data().displayName);
+            setGroupMembers(names);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching group info:", err);
+      }
+    };
+
+    fetchGroupInfo();
+  }, [data.chatId, data.isGroup, currentUser.uid]);
+
+  if (!data.chatId) return <h3>Pilih Obrolan</h3>;
+
+  return (
+    <div className="chat-header-info">
+      <h3 className="chat-header-title">{data.user?.displayName || 'Chat'}</h3>
+
+      {/* DIRECT CHAT STATUS */}
+      {!data.isGroup && (
+        <div className="chat-header-status">
+          {typingUsers.length > 0 ? (
+            <span className="typing-text-active">{typingText}</span>
+          ) : (
+            <span className={`status-text ${status?.state === 'online' ? 'online' : 'offline'}`}>
+              {status?.state === 'online' ? 'Online' : 'Offline'}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* GROUP CHAT INFO */}
+      {data.isGroup && (
+        <div className="chat-header-group-details">
+          {typingUsers.length > 0 ? (
+            <span className="typing-text-active">{typingText}</span>
+          ) : (
+            <div className="group-members-list">
+              {groupMembers.join(', ')}{groupMembers.length > 0 ? '...' : ''}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ... inside ChatWindow ...
+// Replace existing header content with:
+/*
+<div className="chat-header">
+  {onBack && (
+    <button className="back-button" onClick={onBack} aria-label="Kembali">
+      <FiArrowLeft size={24} />
+    </button>
+  )}
+  <Avatar ... />
+  
+  <ChatHeaderInfo data={data} typingUsers={typingUsers} typingText={typingText} />
+  
+  <div className="chat-header-menu-container">...</div>
+</div>
+*/
 // Backwards-compat helper
 const FieldValue = { delete: deleteField };
 
@@ -427,10 +534,18 @@ const ChatSidebar = ({ className }) => {
           <ChatList showArchived={showArchived} searchQuery={chatSearch} />
         </div>
 
-        {/* Sidebar Footer */}
-        <div className="sidebar-footer">
+        {/* Floating Action Buttons (Mobile) */}
+        <div className="chat-fab-container">
           <button
-            className={`footer-btn ${isChatSearchVisible ? 'active' : ''}`}
+            className={`chat-fab ${showArchived ? 'active' : ''}`}
+            onClick={() => setShowArchived(!showArchived)}
+            title={showArchived ? "Tampilkan Chat Aktif" : "Arsip"}
+          >
+            {showArchived ? <FiInbox size={20} /> : <FiArchive size={20} />}
+          </button>
+
+          <button
+            className={`chat-fab ${isChatSearchVisible ? 'active' : ''}`}
             onClick={() => {
               setIsChatSearchVisible(!isChatSearchVisible);
               if (!isChatSearchVisible) setChatSearch('');
@@ -438,14 +553,6 @@ const ChatSidebar = ({ className }) => {
             title="Cari Obrolan"
           >
             <FiSearch size={20} />
-          </button>
-
-          <button
-            className={`footer-btn ${showArchived ? 'active' : ''}`}
-            onClick={() => setShowArchived(!showArchived)}
-            title={showArchived ? "Tampilkan Chat Aktif" : "Arsip"}
-          >
-            {showArchived ? <FiInbox size={20} /> : <FiArchive size={20} />}
           </button>
         </div>
       </div>
@@ -1314,7 +1421,7 @@ const ChatWindow = ({ className, onBack }) => {
     setIsHeaderMenuOpen(false);
   };
 
-  if (!data.chatId) { return (<div className="chat-window placeholder"> <div className="placeholder-content"> <FiSend size={50} /> <h2>Selamat Datang!</h2> <p>Pilih obrolan atau buat grup baru untuk memulai.</p> </div> </div>); }
+  if (!data.chatId) { return (<div className={`chat-window placeholder ${className || ''}`}> <div className="placeholder-content"> <FiSend size={50} /> <h2>Selamat Datang!</h2> <p>Pilih obrolan atau buat grup baru untuk memulai.</p> </div> </div>); }
 
   return (
     <>
@@ -1331,17 +1438,7 @@ const ChatWindow = ({ className, onBack }) => {
             size={40}
             isGroup={data.isGroup}
           />
-          <h3>{data.user?.displayName || 'Pilih Obrolan'}</h3>
-          {typingUsers && typingUsers.length > 0 && (
-            <div className="typing-indicator">
-              <span className="typing-text" title={typingFull}>{typingText}</span>
-              <span className="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
-            </div>
-          )}
+          <ChatHeaderInfo data={data} typingUsers={typingUsers} typingText={typingText} />
 
           <div className="chat-header-menu-container">
             <button
@@ -1392,7 +1489,7 @@ const ChatHome = () => {
   const windowClass = isMobile && !data.chatId ? 'mobile-hidden' : '';
 
   const handleBack = () => {
-    dispatch({ type: "CHANGE_USER", payload: {} });
+    dispatch({ type: "RESET" });
   };
 
   return (
