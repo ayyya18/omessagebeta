@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import Avatar from '../components/Avatar';
 import ChatListItem from '../components/ChatListItem';
@@ -148,7 +149,8 @@ import {
   FiMoreVertical, FiEdit2, FiTrash2,
   FiCornerUpLeft, FiX, FiShare, FiArrowLeft,
   FiArchive, FiInbox, FiMapPin,
-  FiSun, FiMoon, FiSettings, FiUserPlus, FiPlus
+  FiSun, FiMoon, FiSettings, FiUserPlus, FiPlus,
+  FiCopy
 } from 'react-icons/fi';
 
 import { increment } from 'firebase/firestore';
@@ -162,7 +164,7 @@ import ReactionPicker from '../components/ReactionPicker';
 import Fuse from 'fuse.js';
 import { indexChat, deleteChatIndex } from '../utils/searchIndex';
 
-// IMPORT MODAL
+// IMPORT MODALyang
 import ProfileModal from '../components/ProfileModal';
 import CreateGroupModal from '../components/CreateGroupModal';
 import SettingsModal from '../components/Settings/SettingsModal';
@@ -585,10 +587,11 @@ const ChatSidebar = ({ className }) => {
 // ==========================================
 // 5. KOMPONEN MESSAGE LIST (DIPERBAIKI: Formatting & Scope)
 // ==========================================
-const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive }) => {
+const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive, handleReaction, onOpenEmojiPicker }) => {
   const [messages, setMessages] = useState([]);
   const { currentUser } = useAuth();
   const { data } = useChat();
+  const { createNotification } = useNotification();
   const liveRegionRef = useRef(null);
   const prevMessagesCountRef = useRef(0);
 
@@ -776,32 +779,7 @@ const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive }) => 
     </form>
   );
 
-  const handleReaction = async (emojiObject, msg) => {
-    const emoji = emojiObject.emoji;
-    const collectionPath = data.isGroup ? "groups" : "chats";
-    const msgRef = doc(db, collectionPath, data.chatId, "messages", msg.id);
-    const reactionKey = `reactions.${emoji}`;
-    try {
-      const docSnap = await getDoc(msgRef);
-      if (!docSnap.exists() || docSnap.data().isDeleted) return;
-      const reactions = docSnap.data().reactions || {};
-      const userList = reactions[emoji] || [];
 
-      if (userList.includes(currentUser.uid)) {
-        await updateDoc(msgRef, { [reactionKey]: arrayRemove(currentUser.uid) });
-        // Cleanup jika kosong (opsional)
-        const updatedSnap = await getDoc(msgRef);
-        const updatedReactions = updatedSnap.data()?.reactions || {};
-        const updatedList = updatedReactions[emoji];
-        if (updatedList && updatedList.length === 0 && updatedReactions.hasOwnProperty(emoji)) {
-          await updateDoc(msgRef, { [reactionKey]: FieldValue.delete() });
-        }
-      } else {
-        await updateDoc(msgRef, { [reactionKey]: arrayUnion(currentUser.uid) });
-      }
-    } catch (err) { console.error("Gagal menambah/menghapus reaksi: ", err); }
-    setReactionPickerMsgId(null);
-  };
 
   const formatTime = (timestamp) => {
     if (!timestamp) return 'Baru saja';
@@ -888,14 +866,114 @@ const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive }) => 
     return () => document.removeEventListener('click', onDocClick);
   }, [messages]);
 
+  // --- Mobile Long Press Logic ---
+  const [mobileMenuMsgId, setMobileMenuMsgId] = useState(null);
+  const longPressTimerRef = useRef(null);
+  const isLongPressRef = useRef(false); // Ref to track if a long press occurred to prevent click
+
+  const handleTouchStart = (msgId) => {
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      setMobileMenuMsgId(msgId);
+      // Haptic feedback if available (optional)
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 500); // 500ms for long press
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const MobileMessageMenu = ({ msg, onClose }) => {
+    if (!msg) return null;
+
+    // Quick Reactions
+    const reactions = ["❤️", "😂", "😮", "😢", "😡", "👍"];
+
+    // Use Portal to render outside MessageList so we can blur MessageList without blurring the menu
+    return createPortal(
+      <div
+        className="mobile-menu-overlay"
+        onClick={onClose}
+        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      >
+        <div className="mobile-menu-content" onClick={(e) => e.stopPropagation()}>
+          {/* Reaction Bar */}
+          <div className="mobile-reaction-bar">
+            {reactions.map((emoji) => (
+              <button key={emoji} onClick={() => { handleReaction({ emoji }, msg); onClose(); }} className="mobile-reaction-btn">
+                {emoji}
+              </button>
+            ))}
+            <button onClick={() => { onOpenEmojiPicker(msg); onClose(); }} className="mobile-reaction-btn add-more">
+              <FiSmile />
+            </button>
+          </div>
+
+          {/* Menu Items */}
+          <div className="mobile-menu-list">
+            <button onClick={() => { handleReply(msg); onClose(); }}>
+              <FiCornerUpLeft /> Balas
+            </button>
+            <button onClick={() => { onForward(msg); onClose(); }}>
+              <FiShare /> Teruskan
+            </button>
+            <button onClick={() => {
+              navigator.clipboard.writeText(msg.text || "");
+              createNotification?.("Pesan disalin", "info");
+              onClose();
+            }}>
+              <FiCopy /> Salin
+            </button>
+
+            {msg.senderId === currentUser.uid && (
+              <>
+                <button className="delete-option" onClick={() => { handleDelete(msg); onClose(); }}>
+                  <FiTrash2 /> Hapus untuk Anda
+                </button>
+                {/* Assuming delete for everyone uses the same handler or check */}
+              </>
+            )}
+          </div>
+
+          <button className="mobile-menu-cancel" onClick={onClose}>Batal</button>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   return (
-    <div className={`message-list ${isInputActive ? 'input-active' : ''}`} role="list" aria-label="Daftar pesan">
+    <div
+      className={`message-list ${isInputActive ? 'input-active' : ''}`}
+      role="list"
+      aria-label="Daftar pesan"
+      style={{
+        filter: mobileMenuMsgId ? 'blur(5px)' : 'none',
+        transition: 'filter 0.3s ease'
+      }}
+      onContextMenu={(e) => { e.preventDefault(); }}
+    >
       <div ref={liveRegionRef} className="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+      {/* Mobile Menu Portal or Overlay - Rendered via Portal inside component but logically here */}
+      {mobileMenuMsgId && (
+        <MobileMessageMenu
+          msg={messages.find(m => m.id === mobileMenuMsgId)}
+          onClose={() => setMobileMenuMsgId(null)}
+        />
+      )}
+
       {messages.map((msg) => (
         <div key={msg.id} data-msgid={msg.id} role="listitem" className={`message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`}>
           <div className="message-bubble-wrapper">
+            {/* Desktop Buttons (Hidden on Mobile via CSS) */}
             {!msg.isDeleted && !editingMsgId && (
-              <button className="more-btn" title="Opsi" aria-label="Opsi pesan" onClick={() => setMenuOpenMsgId(msg.id === menuOpenMsgId ? null : msg.id)}>
+              <button className="more-btn desktop-only" title="Opsi" aria-label="Opsi pesan" onClick={() => setMenuOpenMsgId(msg.id === menuOpenMsgId ? null : msg.id)}>
                 <FiMoreVertical />
               </button>
             )}
@@ -912,25 +990,26 @@ const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive }) => 
               </div>
             )}
 
-            <div className="message-bubble">
+            <div
+              className="message-bubble"
+              onTouchStart={() => handleTouchStart(msg.id)}
+              onTouchEnd={handleTouchEnd}
+              onTouchMove={handleTouchEnd} // Cancel on scroll
+              onContextMenu={(e) => { e.preventDefault(); }} // Disable default context menu
+            >
+              {/* Desktop Hover Buttons (Hidden on Mobile via CSS) */}
               {!msg.isDeleted && !editingMsgId && (
-                <button className="reply-btn" title="Balas" aria-label="Balas pesan" onClick={() => handleReply(msg)}>
+                <button className="reply-btn desktop-only" title="Balas" aria-label="Balas pesan" onClick={() => handleReply(msg)}>
                   <FiCornerUpLeft />
                 </button>
               )}
               {!msg.isDeleted && !editingMsgId && (
-                <button className="reaction-btn" title="Bereaksi" aria-label="Tambahkan reaksi" onClick={() => setReactionPickerMsgId(msg.id === reactionPickerMsgId ? null : msg.id)}>
+                <button className="reaction-btn desktop-only" title="Bereaksi" aria-label="Tambahkan reaksi" onClick={() => onOpenEmojiPicker(msg)}>
                   <FiSmile />
                 </button>
               )}
 
-              {reactionPickerMsgId === msg.id && (
-                <ReactionPicker
-                  onSelect={(emojiObject) => handleReaction(emojiObject, msg)}
-                  onClose={() => setReactionPickerMsgId(null)}
-                  pickerStyle={{ width: 250, height: 200 }}
-                />
-              )}
+
 
               {editingMsgId === msg.id ? (
                 <MessageEditor msg={msg} />
@@ -956,11 +1035,11 @@ const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive }) => 
 // ==========================================
 // 6. KOMPONEN SEND FORM
 // ==========================================
-const SendForm = ({ replyingTo, setReplyingTo, onScrollToBottom, setIsInputActive }) => {
+const SendForm = ({ replyingTo, setReplyingTo, onScrollToBottom, setIsInputActive, showEmojiPicker, setShowEmojiPicker, reactionTargetMsg, setReactionTargetMsg, onReaction }) => {
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  // showEmojiPicker is now a prop
   const { currentUser } = useAuth();
   const { data } = useChat();
   const { createNotification, createBulkNotifications } = useNotification();
@@ -989,10 +1068,21 @@ const SendForm = ({ replyingTo, setReplyingTo, onScrollToBottom, setIsInputActiv
 
   useEffect(() => { if (replyingTo) inputRef.current?.focus(); }, [replyingTo]);
 
-  const onEmojiClick = (emojiObject) => { setText(prev => prev + emojiObject.emoji); };
+  const onEmojiClick = (emojiObject) => {
+    if (reactionTargetMsg) {
+      onReaction(emojiObject, reactionTargetMsg);
+    } else {
+      setText(prev => prev + emojiObject.emoji);
+    }
+  };
 
   useEffect(() => {
-    const handleClickOutside = (event) => { if (pickerRef.current && !pickerRef.current.contains(event.target)) setShowEmojiPicker(false); };
+    const handleClickOutside = (event) => {
+      if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+        setReactionTargetMsg(null);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -1153,11 +1243,8 @@ const SendForm = ({ replyingTo, setReplyingTo, onScrollToBottom, setIsInputActiv
     return (
       <div className="reply-preview">
         <div className="reply-preview-content">
-          <FiCornerUpLeft className="reply-icon" />
-          <div className="reply-text">
-            <div className="reply-sender">Membalas kepada {replyingTo.senderName}</div>
-            <div className="reply-snippet">{icon}{replyingTo.textSnippet}</div>
-          </div>
+          <div className="reply-sender">Membalas kepada {replyingTo.senderName}</div>
+          <div className="reply-snippet">{icon}{replyingTo.textSnippet}</div>
         </div>
         <button onClick={() => setReplyingTo(null)} className="cancel-reply-btn"><FiX /></button>
       </div>
@@ -1183,21 +1270,21 @@ const SendForm = ({ replyingTo, setReplyingTo, onScrollToBottom, setIsInputActiv
 
   return (
     <>
-      {file && !isUploading ? (
-        <div className="file-preview">
-          <span>File terpilih: {file.name}</span>
-          <button onClick={() => { setFile(null); document.getElementById('file-upload').value = null; }}>X</button>
-        </div>
-      ) : (
-        <ReplyPreview />
-      )}
-
       <div className="send-form-wrapper">
+        {file && !isUploading ? (
+          <div className="file-preview">
+            <span>File terpilih: {file.name}</span>
+            <button onClick={() => { setFile(null); document.getElementById('file-upload').value = null; }}>X</button>
+          </div>
+        ) : (
+          <ReplyPreview />
+        )}
+
         <form onSubmit={handleSubmit} className="send-form">
           <input type="file" id="file-upload" style={{ display: 'none' }} onChange={handleFileChange} disabled={isUploading} />
           <label htmlFor="file-upload" className="attach-btn" title="Lampirkan File" aria-label="Lampirkan file"><FiPaperclip size={20} /></label>
           <button type="button" className="attach-btn" title="Pilih Emoji" aria-label="Pilih Emoji" onClick={() => { setShowEmojiPicker(!showEmojiPicker); if (!showEmojiPicker) onScrollToBottom?.(); }}><FiSmile size={20} /></button>
-          <input ref={inputRef} aria-label="Ketik pesan" type="text" placeholder="Ketik pesan atau caption..." value={text} onChange={handleInputChange} onFocus={handleFocus} onBlur={handleBlur} disabled={isUploading} />
+          <input ref={inputRef} aria-label="Ketik pesan" type="text" placeholder={reactionTargetMsg ? `Bereaksi terhadap ${reactionTargetMsg.senderName}...` : "Ketik pesan atau caption..."} value={text} onChange={handleInputChange} onFocus={handleFocus} onBlur={handleBlur} disabled={isUploading} />
           <button type="submit" className="primary" disabled={isUploading}>{isUploading ? <FiLoader className="loading-spinner-btn" /> : <FiSend />}</button>
         </form>
 
@@ -1349,6 +1436,34 @@ const ChatWindow = ({ className, onBack }) => {
   const headerMenuRef = useRef(null);
   const [typingUsers, setTypingUsers] = useState([]);
   const [isInputActive, setIsInputActive] = useState(false);
+
+  // --- Lifted State for Unified Emoji Picker ---
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reactionTargetMsg, setReactionTargetMsg] = useState(null);
+
+  // --- Lifted handleReaction ---
+  const handleReaction = async (emojiObject, msg) => {
+    if (!currentUser || !msg) return;
+    const reactionKey = `reactions.${emojiObject.emoji}`;
+    const msgRef = doc(db, data.isGroup ? 'groups' : 'chats', data.chatId, 'messages', msg.id);
+
+    // Check if user already reacted with this emoji
+    const currentReactions = msg.reactions || {};
+    const hasReacted = currentReactions[emojiObject.emoji]?.includes(currentUser.uid);
+
+    try {
+      if (hasReacted) {
+        await updateDoc(msgRef, { [reactionKey]: arrayRemove(currentUser.uid) });
+      } else {
+        await updateDoc(msgRef, { [reactionKey]: arrayUnion(currentUser.uid) });
+      }
+    } catch (err) { console.error("Gagal menambah/menghapus reaksi: ", err); }
+    // Close picker if it was a targeted reaction
+    if (reactionTargetMsg) {
+      setReactionTargetMsg(null);
+      setShowEmojiPicker(false);
+    }
+  };
 
   useEffect(() => {
     if (isInputActive) {
@@ -1536,8 +1651,30 @@ const ChatWindow = ({ className, onBack }) => {
             )}
           </div>
         </div>
-        <MessageList setReplyingTo={setReplyingTo} onForward={handleOpenForwardModal} scrollRef={messagesEndRef} isInputActive={isInputActive} />
-        <SendForm replyingTo={replyingTo} setReplyingTo={setReplyingTo} onScrollToBottom={scrollToBottom} setIsInputActive={setIsInputActive} />
+        <MessageList
+          setReplyingTo={setReplyingTo}
+          onForward={handleOpenForwardModal}
+          scrollRef={messagesEndRef}
+          isInputActive={isInputActive}
+          // New Props
+          handleReaction={handleReaction}
+          onOpenEmojiPicker={(msg) => {
+            setReactionTargetMsg(msg);
+            setShowEmojiPicker(true);
+          }}
+        />
+        <SendForm
+          replyingTo={replyingTo}
+          setReplyingTo={setReplyingTo}
+          onScrollToBottom={scrollToBottom}
+          setIsInputActive={setIsInputActive}
+          // New Props
+          showEmojiPicker={showEmojiPicker}
+          setShowEmojiPicker={setShowEmojiPicker}
+          reactionTargetMsg={reactionTargetMsg}
+          setReactionTargetMsg={setReactionTargetMsg}
+          onReaction={handleReaction}
+        />
       </div>
       <ForwardMessageModal show={showForwardModal} onClose={() => setShowForwardModal(false)} messageToForward={messageToForward} />
     </>
