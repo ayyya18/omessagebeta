@@ -198,6 +198,8 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  position: relative;
+  /* Added for FAB positioning */
 }
 
 /* Hide original .sidebar class styles or re-map them */
@@ -347,9 +349,54 @@
 }
 
 /* Floating Action Buttons (FABs) */
+/* Floating Action Buttons (FABs) - Desktop Default */
 .chat-fab-container {
-  display: none;
-  /* Hidden on desktop */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+}
+
+/* FAB Styles - Now Global */
+.chat-fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(12px);
+}
+
+.chat-fab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.25);
+}
+
+.chat-fab.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  box-shadow: 0 6px 16px rgba(104, 211, 145, 0.4),
+    0 3px 6px rgba(104, 211, 145, 0.3);
+}
+
+.chat-fab.active:hover {
+  background: var(--primary-color);
+  filter: brightness(1.1);
 }
 
 @media (max-width: 1024px) {
@@ -358,53 +405,12 @@
     /* Hide old footer on mobile */
   }
 
+  /* Mobile positioning overrides */
   .chat-fab-container {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
     position: fixed;
     bottom: 80px;
     /* Above bottom navigation */
     right: 20px;
-    z-index: 100;
-  }
-
-  .chat-fab {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--card-bg);
-    border: 1px solid var(--glass-border);
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3),
-      0 2px 4px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(12px);
-  }
-
-  .chat-fab:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: var(--text-primary);
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4),
-      0 3px 6px rgba(0, 0, 0, 0.25);
-  }
-
-  .chat-fab.active {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
-    box-shadow: 0 6px 16px rgba(104, 211, 145, 0.4),
-      0 3px 6px rgba(104, 211, 145, 0.3);
-  }
-
-  .chat-fab.active:hover {
-    background: var(--primary-color);
-    filter: brightness(1.1);
   }
 }
 
@@ -665,6 +671,61 @@
     opacity: 1 !important;
     transform: none !important;
   }
+
+  /* Aggressive override for Emoji Picker Library */
+  .emoji-picker-input-container aside.emoji-picker-react,
+  .emoji-picker-input-container .EmojiPickerReact {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 450px !important;
+    border: none !important;
+    background: #222 !important;
+    box-shadow: none !important;
+    --epr-category-label-bg-color: #222 !important;
+    --epr-picker-background-color: #222 !important;
+    --epr-bg-color: #222 !important;
+  }
+
+  /* Fix Search Bar Overlap - Robust Attribute Selector */
+  .emoji-picker-input-container input[class*="epr-search"] {
+    width: calc(100% - 50px) !important;
+    /* increased space safely */
+    margin-right: 50px !important;
+    max-width: calc(100% - 50px) !important;
+  }
+
+  /* Ensure Skin Tone Picker is visible */
+  .emoji-picker-input-container [class*="epr-skin-tone"] {
+    display: flex !important;
+    z-index: 10 !important;
+  }
+
+  /* Fix Category Icons to be Circular - Robust Attribute Selectors */
+  .emoji-picker-input-container button[class*="epr-cat-btn"],
+  .emoji-picker-input-container [class*="epr-cat-btn"] {
+    border-radius: 50% !important;
+    width: 36px !important;
+    /* Slightly larger targets */
+    height: 36px !important;
+    padding: 6px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Target inner icons if needed */
+  .emoji-picker-input-container [class*="epr-icn"] {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  /* Active state circular enforcement */
+  .emoji-picker-input-container button[class*="epr-cat-btn"]:focus,
+  .emoji-picker-input-container button[class*="epr-cat-btn"]:active,
+  .emoji-picker-input-container button[class*="epr-cat-btn"][aria-selected="true"] {
+    border-radius: 50% !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
+  }
 }
 
 /* === DAFTAR PESAN === */
@@ -880,7 +941,6 @@
 
 .send-form input {
   flex: 1;
-  margin-right: 12px;
 }
 
 /* --- TAMBAHAN DARI LANGKAH SEBELUMNYA --- */
@@ -1290,6 +1350,8 @@
   .chat-window {
     width: 100%;
     order: 2;
+    padding-bottom: 80px;
+    /* Space for Bottom Navigation */
   }
 
   .chat-item-actions {
@@ -1298,6 +1360,11 @@
 
   .message-bubble {
     max-width: 92%;
+  }
+
+  .message-list {
+    padding-bottom: 45px;
+    /* Tambahan padding lebih besar agar tidak tertutup input */
   }
 }
 
@@ -1439,6 +1506,109 @@
   box-shadow: none !important;
 }
 
+@media (max-width: 800px) {
+  .emoji-picker-input-container {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    width: 100%;
+    z-index: 10;
+    box-shadow: none !important;
+    background: var(--card-bg);
+    /* Ensure it has a background so it doesn't float transparently */
+  }
+
+  .emoji-picker-input-container .emoji-picker-react {
+    height: 300px !important;
+    /* Slightly shorter on mobile if needed */
+    border-radius: 0 !important;
+    border: none !important;
+    border-top: 1px solid var(--glass-border) !important;
+  }
+
+  .send-form-wrapper {
+    display: flex;
+    flex-direction: column;
+    background: var(--sidebar-bg);
+    /* Match background to look seamless */
+  }
+
+  /* Remove rounded corners from send-form when picker is open if desired, 
+     but send-form has margin/padding so it might look like a separate bubble. 
+     Let's keep it simple first. */
+  /* ... existing styles ... */
+
+  /* === MOBILE PRESET FIX (412px - Brave S20 Ultra) === */
+  @media (max-width: 480px) {
+    .send-form {
+      /* Use border-box to contain padding within width */
+      box-sizing: border-box;
+      /* Remove side/top margins, keep bottom margin */
+      max-width: 100%;
+      /* Symmetric padding to ensure centered layout */
+      padding: 4px 6px;
+      /* Balanced padding */
+      /* Gap updated to 7px */
+      gap: 7px;
+      /* Ensure text input takes all remaining space */
+      min-width: 0;
+      height: auto;
+      /* Allow auto height for content fit */
+      min-height: 40px;
+      /* Comfortable touch target height */
+      align-items: center;
+      /* Ensure vertical centering */
+    }
+
+    .send-form .attach-btn {
+      width: 32px !important;
+      height: 32px !important;
+      min-width: 32px !important;
+      flex-shrink: 0;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Adjust icon size inside buttons if possible via scaling or font-size */
+    .send-form .attach-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .send-form input[type="text"] {
+      font-size: 0.85rem;
+      /* Readable compact size */
+      /* Minimal padding for compact design */
+      padding: 4px 8px;
+      min-width: 0;
+      flex: 1;
+      text-align: left;
+      line-height: 1.4;
+      height: auto;
+    }
+
+    .send-form button[type="submit"] {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      flex-shrink: 0;
+      padding: 0;
+      margin-left: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .send-form button[type="submit"] svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+}
+
 .send-form {
   position: relative;
   z-index: 21;
@@ -1455,8 +1625,6 @@
   padding: 6px 6px 6px 12px;
   /* Inner padding */
   /* Pill Shape for the whole container */
-  border-radius: 999px;
-  margin: 10px 16px;
   /* Add horizontal spacing */
 }
 
@@ -1497,6 +1665,8 @@
   outline: none;
   transition: none;
   /* Interact via container focus if needed, or simple text input */
+  min-width: 0;
+  /* Important for flex flow */
 }
 
 .send-form input[type="text"]:focus {
@@ -2264,19 +2434,127 @@
 
   /* Mobile Message List padding for Bottom Nav & Send Form*/
   .message-list {
-    padding-bottom: 80px;
+    padding-bottom: 45px;
+    transition: padding-bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
 
-  /* Adjust Send Form for mobile */
-  .send-form {
-    padding: 10px;
-    margin-bottom: 60px;
-    /* Push above bottom nav */
+  .message-list.input-active {
+    padding-bottom: 345px !important;
+  }
+
+  /* Adjust Send Form Wrapper for mobile - Container for Form + Picker */
+  .send-form-wrapper {
     position: fixed;
-    bottom: 0;
+    bottom: 0px;
+    /* Anchor to bottom of screen */
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+    /* Reserve space for Navbar + Safe Area */
     left: 0;
     width: 100%;
     z-index: 100;
+    /* Below Navbar (z-1000) */
+    display: flex;
+    flex-direction: column;
+    background: #222;
+    /* Match Picker Background */
+    border-top: none;
+    /* Remove border for seamless look */
+  }
+
+  /* Reset .send-form styles since wrapper handles positioning */
+  .send-form {
+    padding: 10px;
+    position: relative;
+    /* Reset fixed */
+    bottom: auto;
+    left: auto;
+    width: 100%;
+    border-top: none;
+    /* Border moved to wrapper */
+    background: transparent;
+    /* Background on wrapper */
+    order: 1;
+    /* Visionally Top */
+  }
+
+  /* Emoji Picker Container Mobile */
+  .emoji-picker-input-container {
+    width: 100%;
+    height: 300px;
+    /* Fixed height for picker area */
+    background: #222;
+    /* Match Picker Dark Theme */
+    overflow: hidden;
+    order: 2;
+    /* Visually Bottom */
+  }
+
+  /* --- Mobile Input Bar Styling (Reference Match) --- */
+  .send-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+  }
+
+  /* Input Field - Dark Pill */
+  .send-form input[type="text"] {
+    flex: 1;
+    background-color: #2c2c2c;
+    /* Dark Grey Background */
+    border: none;
+    border-radius: 24px;
+    /* Pill Shape */
+    padding: 12px 25px;
+    color: #ffffff;
+    font-size: 0.95rem;
+    height: 48px;
+    /* Taller input */
+    box-sizing: border-box;
+    /* Ensure padding included in height */
+  }
+
+  .send-form input[type="text"]::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  /* Send Button - White Circle */
+  .send-form button[type="submit"] {
+    width: 47px;
+    height: 47px;
+    background-color: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000000;
+    /* Black Icon */
+    border: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
+  }
+
+  .send-form button[type="submit"]:disabled {
+    opacity: 0.7;
+    background-color: #e0e0e0;
+  }
+
+  /* Icons (Attach, Emoji) - Light Grey */
+  .attach-btn {
+    color: #b0b0b0;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .attach-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
   }
 
   /* When chat window is active, hide bottom nav if desired, or make space */

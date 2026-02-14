@@ -585,11 +585,10 @@ const ChatSidebar = ({ className }) => {
 // ==========================================
 // 5. KOMPONEN MESSAGE LIST (DIPERBAIKI: Formatting & Scope)
 // ==========================================
-const MessageList = ({ setReplyingTo, onForward }) => {
+const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive }) => {
   const [messages, setMessages] = useState([]);
   const { currentUser } = useAuth();
   const { data } = useChat();
-  const messagesEndRef = useRef(null);
   const liveRegionRef = useRef(null);
   const prevMessagesCountRef = useRef(0);
 
@@ -625,7 +624,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
     );
   };
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, scrollRef]);
 
   useEffect(() => {
     setReactionPickerMsgId(null);
@@ -890,7 +889,7 @@ const MessageList = ({ setReplyingTo, onForward }) => {
   }, [messages]);
 
   return (
-    <div className="message-list" role="list" aria-label="Daftar pesan">
+    <div className={`message-list ${isInputActive ? 'input-active' : ''}`} role="list" aria-label="Daftar pesan">
       <div ref={liveRegionRef} className="sr-only" aria-live="polite" aria-atomic="true"></div>
       {messages.map((msg) => (
         <div key={msg.id} data-msgid={msg.id} role="listitem" className={`message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`}>
@@ -949,16 +948,15 @@ const MessageList = ({ setReplyingTo, onForward }) => {
           </div>
         </div>
       ))}
-      <div ref={messagesEndRef} />
+      <div ref={scrollRef} style={{ height: '120px', width: '100%', clear: 'both' }} />
     </div>
   );
 };
 
-
 // ==========================================
 // 6. KOMPONEN SEND FORM
 // ==========================================
-const SendForm = ({ replyingTo, setReplyingTo }) => {
+const SendForm = ({ replyingTo, setReplyingTo, onScrollToBottom, setIsInputActive }) => {
   const [text, setText] = useState('');
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -970,15 +968,35 @@ const SendForm = ({ replyingTo, setReplyingTo }) => {
   const inputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
+  // Scroll to bottom when emoji picker opens
+  useEffect(() => {
+    if (showEmojiPicker) {
+      setTimeout(() => {
+        onScrollToBottom?.();
+      }, 100); // Slight delay for layout update
+      setIsInputActive?.(true);
+    } else {
+      // Only set inactive if input is also not focused (handled by blur, but double check here if needed)
+      // Actually blur handles the "keyboard closed" case.
+      // If we just closed picker, check focus?
+      // Let's rely on onBlur for keyboard, and this for picker.
+      // If picker closes, and input is NOT focused, then inactive.
+      if (document.activeElement !== inputRef.current) {
+        setIsInputActive?.(false);
+      }
+    }
+  }, [showEmojiPicker, onScrollToBottom, setIsInputActive]);
+
   useEffect(() => { if (replyingTo) inputRef.current?.focus(); }, [replyingTo]);
 
-  const onEmojiClick = (emojiObject) => { setText(prev => prev + emojiObject.emoji); setShowEmojiPicker(false); };
+  const onEmojiClick = (emojiObject) => { setText(prev => prev + emojiObject.emoji); };
 
   useEffect(() => {
     const handleClickOutside = (event) => { if (pickerRef.current && !pickerRef.current.contains(event.target)) setShowEmojiPicker(false); };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
 
   const handleFileChange = (e) => { if (e.target.files[0]) setFile(e.target.files[0]); };
 
@@ -997,7 +1015,6 @@ const SendForm = ({ replyingTo, setReplyingTo }) => {
     } catch (err) { console.error('Cloudinary upload error:', err); return null; }
   };
 
-  // Helper untuk update last message di SendForm
   const updateLastMessageForAll = async (lastMessageData) => {
     if (!data.chatId) return;
     try {
@@ -1147,6 +1164,23 @@ const SendForm = ({ replyingTo, setReplyingTo }) => {
     );
   };
 
+  const handleFocus = () => {
+    setShowEmojiPicker(false);
+    setIsInputActive?.(true);
+    setTimeout(() => {
+      onScrollToBottom?.();
+    }, 300); // Delay for keyboard animation on mobile
+  };
+
+  const handleBlur = () => {
+    // Small delay to check if we moved to emoji picker or just closed keyboard
+    setTimeout(() => {
+      if (!showEmojiPicker) {
+        setIsInputActive?.(false);
+      }
+    }, 200);
+  };
+
   return (
     <>
       {file && !isUploading ? (
@@ -1159,19 +1193,27 @@ const SendForm = ({ replyingTo, setReplyingTo }) => {
       )}
 
       <div className="send-form-wrapper">
-        {showEmojiPicker && (
-          <div ref={pickerRef} className="emoji-picker-input-container">
-            <Picker onEmojiClick={onEmojiClick} pickerStyle={{ width: '100%', boxShadow: 'none' }} preload />
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="send-form">
           <input type="file" id="file-upload" style={{ display: 'none' }} onChange={handleFileChange} disabled={isUploading} />
           <label htmlFor="file-upload" className="attach-btn" title="Lampirkan File" aria-label="Lampirkan file"><FiPaperclip size={20} /></label>
-          <button type="button" className="attach-btn" title="Pilih Emoji" aria-label="Pilih Emoji" onClick={() => setShowEmojiPicker(!showEmojiPicker)}><FiSmile size={20} /></button>
-          <input ref={inputRef} aria-label="Ketik pesan" type="text" placeholder="Ketik pesan atau caption..." value={text} onChange={handleInputChange} onFocus={() => setShowEmojiPicker(false)} disabled={isUploading} />
+          <button type="button" className="attach-btn" title="Pilih Emoji" aria-label="Pilih Emoji" onClick={() => { setShowEmojiPicker(!showEmojiPicker); if (!showEmojiPicker) onScrollToBottom?.(); }}><FiSmile size={20} /></button>
+          <input ref={inputRef} aria-label="Ketik pesan" type="text" placeholder="Ketik pesan atau caption..." value={text} onChange={handleInputChange} onFocus={handleFocus} onBlur={handleBlur} disabled={isUploading} />
           <button type="submit" className="primary" disabled={isUploading}>{isUploading ? <FiLoader className="loading-spinner-btn" /> : <FiSend />}</button>
         </form>
+
+        {showEmojiPicker && (
+          <div ref={pickerRef} className="emoji-picker-input-container">
+            <Picker
+              theme="dark"
+              onEmojiClick={onEmojiClick}
+              width="100%"
+              height={450}
+              style={{ width: '100%', height: '450px', boxShadow: 'none', background: '#222', border: 'none' }}
+              pickerStyle={{ width: '100%', height: '450px', boxShadow: 'none', background: '#222', border: 'none' }}
+              preload
+            />
+          </div>
+        )}
       </div>
     </>
   );
@@ -1301,10 +1343,18 @@ const ChatWindow = ({ className, onBack }) => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [messageToForward, setMessageToForward] = useState(null);
+  const messagesEndRef = useRef(null);
 
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const headerMenuRef = useRef(null);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [isInputActive, setIsInputActive] = useState(false);
+
+  useEffect(() => {
+    if (isInputActive) {
+      scrollToBottom();
+    }
+  }, [isInputActive]);
 
   useEffect(() => {
     setReplyingTo(null);
@@ -1421,6 +1471,28 @@ const ChatWindow = ({ className, onBack }) => {
     setIsHeaderMenuOpen(false);
   };
 
+  const scrollToBottom = () => {
+    // Gunakan requestAnimationFrame untuk "menempel" ke bawah selama transisi CSS
+    // Durasi loop disesuaikan dengan durasi transisi CSS (300ms) + buffer
+    const duration = 500;
+    const start = performance.now();
+
+    const step = (now) => {
+      const container = messagesEndRef.current?.parentElement;
+      if (container) {
+        // Set scrollTop ke scrollHeight secara langsung di setiap frame
+        // Ini membuat efek "lengket" di bawah saat padding berubah halus
+        container.scrollTop = container.scrollHeight;
+      }
+
+      if (now - start < duration) {
+        requestAnimationFrame(step);
+      }
+    };
+
+    requestAnimationFrame(step);
+  };
+
   if (!data.chatId) { return (<div className={`chat-window placeholder ${className || ''}`}> <div className="placeholder-content"> <FiSend size={50} /> <h2>Selamat Datang!</h2> <p>Pilih obrolan atau buat grup baru untuk memulai.</p> </div> </div>); }
 
   return (
@@ -1464,8 +1536,8 @@ const ChatWindow = ({ className, onBack }) => {
             )}
           </div>
         </div>
-        <MessageList setReplyingTo={setReplyingTo} onForward={handleOpenForwardModal} />
-        <SendForm replyingTo={replyingTo} setReplyingTo={setReplyingTo} />
+        <MessageList setReplyingTo={setReplyingTo} onForward={handleOpenForwardModal} scrollRef={messagesEndRef} isInputActive={isInputActive} />
+        <SendForm replyingTo={replyingTo} setReplyingTo={setReplyingTo} onScrollToBottom={scrollToBottom} setIsInputActive={setIsInputActive} />
       </div>
       <ForwardMessageModal show={showForwardModal} onClose={() => setShowForwardModal(false)} messageToForward={messageToForward} />
     </>
