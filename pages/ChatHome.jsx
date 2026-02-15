@@ -791,39 +791,64 @@ const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive, handl
     const replyData = {
       messageId: msg.id,
       senderName: msg.senderName || 'User',
-      textSnippet: msg.text ? (msg.text.length > 50 ? msg.text.substring(0, 50) + '...' : msg.text) : (msg.fileName ? `📄 ${msg.fileName}` : (msg.fileType === 'image' ? '🖼️ Foto' : (msg.fileType === 'video' ? '📹 Video' : 'File'))),
+      textSnippet: msg.text
+        ? (msg.text.length > 35 ? msg.text.substring(0, 35) + '...' : msg.text)
+        : (msg.fileName
+          ? `📄 ${msg.fileName.length > 25 ? msg.fileName.substring(0, 25) + '...' : msg.fileName}`
+          : (msg.fileType === 'image' ? '🖼️ Foto' : (msg.fileType === 'video' ? '📹 Video' : 'File'))
+        ),
       fileType: msg.fileType
     };
     setReplyingTo(replyData);
   };
 
+  // --- Scroll to Message Logic ---
+  const handleReplyClick = (replyId) => {
+    const msgEl = document.querySelector(`[data-msgid="${replyId}"]`);
+    if (msgEl) {
+      msgEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Add highlight class
+      msgEl.classList.add('highlight-message');
+      setTimeout(() => msgEl.classList.remove('highlight-message'), 2000);
+    } else {
+      createNotification("Pesan asli tidak ditemukan (mungkin belum termuat)", "info");
+    }
+  };
+
   const ReplyQuote = ({ replyData }) => {
     if (!replyData) return null;
+
     let icon = null;
     if (replyData.fileType === 'image') icon = "🖼️ ";
     else if (replyData.fileType === 'video') icon = "📹 ";
     else if (replyData.fileType === 'raw' || replyData.fileType === 'auto') icon = "📄 ";
+
     return (
-      <div className="reply-quote">
-        <div className="reply-quote-sender">{replyData.senderName}</div>
-        <div className="reply-quote-text">{icon}{replyData.textSnippet}</div>
+      <div
+        className="reply-quote"
+        onClick={(e) => {
+          e.stopPropagation();
+          handleReplyClick(replyData.messageId);
+        }}
+        style={{ cursor: 'pointer' }}
+        title="Klik untuk lihat pesan asli"
+      >
+        <div className="reply-quote-accent"></div>
+        <p className="reply-quote-sender">{replyData.senderName}</p>
+        <div className="reply-quote-text">
+          {icon}{replyData.textSnippet}
+        </div>
       </div>
     );
   };
 
+  // ForwardedLabel component (no changes needed but included for context continuity if needed, skipping for brevity)
   const ForwardedLabel = ({ forwardedFrom }) => {
     if (!forwardedFrom) return null;
     return <div className="forwarded-label"><FiShare size={12} /> Diteruskan dari {forwardedFrom}</div>;
   };
 
-  const MessageContent = ({ msg }) => {
-    if (msg.isDeleted) {
-      return (
-        <p className="message-text deleted">
-          <FiTrash2 size={14} /> Pesan ini telah dihapus
-        </p>
-      );
-    }
+  const MessageFile = ({ msg }) => {
     let originalContent;
     switch (msg.fileType) {
       case 'image':
@@ -832,6 +857,7 @@ const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive, handl
       case 'video':
         originalContent = (<> <video src={msg.fileURL} controls className="message-video" /> {msg.text && <p className="message-text caption">{msg.text}</p>} </>);
         break;
+
       case 'raw':
       case 'auto':
         originalContent = (<> <a href={msg.fileURL} target="_blank" rel="noopener noreferrer" className="message-file"> <FiFile size={24} /> <span>{msg.fileName || 'File Terlampir'}</span> </a> {msg.text && <p className="message-text caption">{msg.text}</p>} </>);
@@ -902,6 +928,26 @@ const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive, handl
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
       >
         <div className="mobile-menu-content" onClick={(e) => e.stopPropagation()}>
+          {/* Message Preview */}
+          <div className="mobile-menu-preview">
+            <p className="mobile-preview-sender">{msg.senderName || 'User'}</p>
+            <div className="mobile-preview-snippet">
+              {(() => {
+                let icon = null;
+                if (msg.fileType === 'image') icon = '🖼️ ';
+                else if (msg.fileType === 'video') icon = '📹 ';
+                else if (msg.fileType === 'raw' || msg.fileType === 'auto') icon = '📄 ';
+
+                return (
+                  <>
+                    {icon}
+                    {msg.text || (msg.fileURL ? 'File Media' : '')}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
           {/* Reaction Bar */}
           <div className="mobile-reaction-bar">
             {reactions.map((emoji) => (
@@ -968,65 +1014,84 @@ const MessageList = ({ setReplyingTo, onForward, scrollRef, isInputActive, handl
         />
       )}
 
-      {messages.map((msg) => (
-        <div key={msg.id} data-msgid={msg.id} role="listitem" className={`message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`}>
-          <div className="message-bubble-wrapper">
-            {/* Desktop Buttons (Hidden on Mobile via CSS) */}
-            {!msg.isDeleted && !editingMsgId && (
-              <button className="more-btn desktop-only" title="Opsi" aria-label="Opsi pesan" onClick={() => setMenuOpenMsgId(msg.id === menuOpenMsgId ? null : msg.id)}>
-                <FiMoreVertical />
-              </button>
-            )}
+      {messages.map((msg, index) => {
+        const prevMsg = index > 0 ? messages[index - 1] : null;
+        let marginClass = 'mt-4'; // Default large margin
 
-            {menuOpenMsgId === msg.id && (
-              <div className="message-menu" ref={menuRef} role="menu" aria-label="Menu pesan">
-                <button role="menuitem" aria-label="Teruskan pesan" onClick={() => { onForward(msg); setMenuOpenMsgId(null); }}><FiShare /> Teruskan</button>
-                {msg.senderId === currentUser.uid && msg.text && !msg.fileURL && (
-                  <button role="menuitem" aria-label="Edit pesan" onClick={() => openEditMode(msg)}><FiEdit2 /> Edit</button>
+        if (prevMsg && msg.createdAt && prevMsg.createdAt) {
+          const currentMillis = msg.createdAt.toMillis ? msg.createdAt.toMillis() : (msg.createdAt.seconds * 1000) || Date.now();
+          const prevMillis = prevMsg.createdAt.toMillis ? prevMsg.createdAt.toMillis() : (prevMsg.createdAt.seconds * 1000) || Date.now();
+          const diffMinutes = (currentMillis - prevMillis) / (1000 * 60);
+
+          if (diffMinutes < 1 && msg.senderId === prevMsg.senderId) {
+            marginClass = 'mt-1'; // Small margin if same sender and < 1 minute
+          }
+        }
+
+        return (
+          <div key={msg.id} data-msgid={msg.id} role="listitem" className={`message ${msg.senderId === currentUser.uid ? 'sent' : 'received'} ${marginClass}`}>
+            <div className="message-bubble-wrapper">
+              {/* Desktop Buttons (Hidden on Mobile via CSS) */}
+              {!msg.isDeleted && !editingMsgId && (
+                <button className="more-btn desktop-only" title="Opsi" aria-label="Opsi pesan" onClick={() => setMenuOpenMsgId(msg.id === menuOpenMsgId ? null : msg.id)}>
+                  <FiMoreVertical />
+                </button>
+              )}
+
+              {menuOpenMsgId === msg.id && (
+                <div className="message-menu" ref={menuRef} role="menu" aria-label="Menu pesan">
+                  <button role="menuitem" aria-label="Teruskan pesan" onClick={() => { onForward(msg); setMenuOpenMsgId(null); }}><FiShare /> Teruskan</button>
+                  {msg.senderId === currentUser.uid && msg.text && !msg.fileURL && (
+                    <button role="menuitem" aria-label="Edit pesan" onClick={() => openEditMode(msg)}><FiEdit2 /> Edit</button>
+                  )}
+                  {msg.senderId === currentUser.uid && (
+                    <button role="menuitem" aria-label="Hapus pesan" onClick={() => handleDelete(msg)} className="delete"><FiTrash2 /> Hapus</button>
+                  )}
+                </div>
+              )}
+
+              <div
+                className={`message-bubble ${msg.replyingTo ? 'has-reply-bubble' : ''}`}
+                onTouchStart={() => handleTouchStart(msg.id)}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchEnd} // Cancel on scroll
+                onContextMenu={(e) => { e.preventDefault(); }} // Disable default context menu
+              >
+                {/* Desktop Hover Buttons (Hidden on Mobile via CSS) */}
+                {!msg.isDeleted && !editingMsgId && (
+                  <button className="reply-btn desktop-only" title="Balas" aria-label="Balas pesan" onClick={() => handleReply(msg)}>
+                    <FiCornerUpLeft />
+                  </button>
                 )}
-                {msg.senderId === currentUser.uid && (
-                  <button role="menuitem" aria-label="Hapus pesan" onClick={() => handleDelete(msg)} className="delete"><FiTrash2 /> Hapus</button>
+                {!msg.isDeleted && !editingMsgId && (
+                  <button className="reaction-btn desktop-only" title="Bereaksi" aria-label="Tambahkan reaksi" onClick={() => onOpenEmojiPicker(msg)}>
+                    <FiSmile />
+                  </button>
+                )}
+
+
+
+                {editingMsgId === msg.id ? (
+                  <MessageEditor msg={msg} />
+                ) : (
+                  <>
+                    {data.isGroup && msg.senderId !== currentUser.uid && !msg.isDeleted && (
+                      <p className="message-sender">{msg.senderName || 'User'}</p>
+                    )}
+                    <ChatBubble
+                      msg={msg}
+                      isSent={msg.senderId === currentUser.uid}
+                      onReplyClick={handleReplyClick}
+                    />
+                  </>
                 )}
               </div>
-            )}
 
-            <div
-              className="message-bubble"
-              onTouchStart={() => handleTouchStart(msg.id)}
-              onTouchEnd={handleTouchEnd}
-              onTouchMove={handleTouchEnd} // Cancel on scroll
-              onContextMenu={(e) => { e.preventDefault(); }} // Disable default context menu
-            >
-              {/* Desktop Hover Buttons (Hidden on Mobile via CSS) */}
-              {!msg.isDeleted && !editingMsgId && (
-                <button className="reply-btn desktop-only" title="Balas" aria-label="Balas pesan" onClick={() => handleReply(msg)}>
-                  <FiCornerUpLeft />
-                </button>
-              )}
-              {!msg.isDeleted && !editingMsgId && (
-                <button className="reaction-btn desktop-only" title="Bereaksi" aria-label="Tambahkan reaksi" onClick={() => onOpenEmojiPicker(msg)}>
-                  <FiSmile />
-                </button>
-              )}
-
-
-
-              {editingMsgId === msg.id ? (
-                <MessageEditor msg={msg} />
-              ) : (
-                <>
-                  {data.isGroup && msg.senderId !== currentUser.uid && !msg.isDeleted && (
-                    <p className="message-sender">{msg.senderName || 'User'}</p>
-                  )}
-                  <ChatBubble msg={msg} isSent={msg.senderId === currentUser.uid} />
-                </>
-              )}
+              <RenderReactionsClickable reactions={msg.reactions} msg={msg} />
             </div>
-
-            <RenderReactionsClickable reactions={msg.reactions} msg={msg} />
           </div>
-        </div>
-      ))}
+        )
+      })}
       <div ref={scrollRef} style={{ height: '120px', width: '100%', clear: 'both' }} />
     </div>
   );

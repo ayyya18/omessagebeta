@@ -1,8 +1,8 @@
 import React from 'react';
 import { FiFile, FiTrash2, FiCheck } from 'react-icons/fi';
-import { useAuth } from '../context/AuthContext'; // Import useAuth to detect self
+import { useAuth } from '../context/AuthContext';
 
-export default function ChatBubble({ msg, isSent }) {
+export default function ChatBubble({ msg, isSent, onReplyClick }) {
   const { currentUser } = useAuth(); // Get current user
 
   if (!msg) return null;
@@ -19,14 +19,6 @@ export default function ChatBubble({ msg, isSent }) {
   const renderTicks = () => {
     if (!isSent) return null; // Only show ticks for sent messages
 
-    // Check if seen by anyone other than sender (simplified logic)
-    // In a real app, you'd check if specific recipients have seen it
-    const isSeen = msg.seenBy && msg.seenBy.length > 1; // Assuming arrayUnion adds current user too, or logic in ChatHome handles it. 
-    // Actually ChatHome logic: msg.senderId !== currentUser.uid -> update seenBy. 
-    // So if seenBy has entries, it means someone saw it? 
-    // Let's assume seenBy field exists and has length > 0 means seen.
-    // Ideally seenBy contains recipient UIDs.
-
     const isRead = msg.seenBy && msg.seenBy.length > 0;
 
     return (
@@ -38,7 +30,6 @@ export default function ChatBubble({ msg, isSent }) {
   };
 
   const renderContent = () => {
-    // ... (content rendering remains same, but we can reuse the switch)
     switch (msg.fileType) {
       case 'image':
         return (
@@ -67,10 +58,17 @@ export default function ChatBubble({ msg, isSent }) {
   };
 
   return (
-    <div className={`chat-bubble ${isSent ? 'sent' : 'received'}`}>
+    <div className={`chat-bubble ${isSent ? 'sent' : 'received'} ${msg.replyingTo ? 'has-reply-bubble' : ''}`}>
       {msg.forwardedFrom && <div className="forwarded-label">Diteruskan dari {msg.forwardedFrom}</div>}
       {msg.replyingTo && (
-        <div className="reply-quote">
+        <div
+          className="reply-quote"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onReplyClick) onReplyClick(msg.replyingTo.messageId);
+          }}
+          style={{ cursor: 'pointer' }}
+        >
           <div className="reply-quote-sender">{msg.replyingTo.senderName}</div>
           <div className="reply-quote-text">{msg.replyingTo.textSnippet}</div>
         </div>

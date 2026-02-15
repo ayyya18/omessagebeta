@@ -736,7 +736,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   /* Prevent horizontal scroll */
-  padding: 12px;
+  padding: 5px;
   display: flex;
   flex-direction: column;
   background: transparent;
@@ -746,7 +746,6 @@
 
 .message {
   display: flex;
-  margin-bottom: 12px;
   align-items: flex-end;
 }
 
@@ -1990,41 +1989,160 @@
 }
 
 .reply-quote {
-  background-color: rgba(0, 0, 0, 0.05);
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  margin-top: -4px;
-  border-left: 3px solid var(--primary-color);
-  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.15);
+  /* Slightly darker/transparent */
+  padding: 8px 18px;
+  /* Match message bubble horizontal padding */
+
+  /* ABSOLUTE POSITIONING STRATEGY (Inserted Card Style) */
+  /* Matches user reference: Card inside the bubble with spacing */
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  width: auto;
+  /* Stretch with offsets */
+  margin: 0;
+
+  /* Visual Styling from Reference */
+  border-radius: 8px;
+  /* Small rounded corners for the inner card, not inheriting huge bubble radius */
+
+  box-sizing: border-box;
+
+  /* Layout Internals */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  /* position: relative; Removed, now absolute */
+  overflow: hidden;
+  /* Clip inner content/accent */
+
+  /* Aesthetic Styling */
+  box-sizing: border-box;
+}
+
+/* Pseudo-element for the Accent Bar (Straight line, no curve glitch) */
+.reply-quote::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background-color: var(--primary-color);
+  opacity: 0.9;
 }
 
 .message.sent .reply-quote {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-left-color: #fff;
+  background-color: rgba(0, 0, 0, 0.2);
+  /* Darker for sent */
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.message.sent .reply-quote::before {
+  background-color: #fff;
+  /* White accent for sent messages */
+  opacity: 0.8;
 }
 
 .reply-quote-sender {
-  font-weight: 600;
-  font-size: 0.8rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+  /* Slightly smaller, more premium */
   color: var(--primary-color);
-}
-
-.message.sent .reply-quote-sender {
-  color: #fff;
-}
-
-.reply-quote-text {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  margin-bottom: 2px;
+  text-align: left;
+  letter-spacing: 0.3px;
+  text-transform: capitalize;
+  /* Added for better text truncation */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
 }
 
+.message.sent .reply-quote-sender {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.reply-quote-text {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  /* Softer white for text */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+  text-align: left;
+  line-height: 1.4;
+}
+
 .message.sent .reply-quote-text {
   color: rgba(255, 255, 255, 0.9);
 }
+
+/* Message Bubble specific for Reply Layout */
+.message-bubble.has-reply-bubble {
+  padding-top: 52px;
+  /* Adjusted: 6px top + ~40px content + 6px gap */
+  position: relative;
+  /* Ensure anchor for absolute child */
+  min-width: 200px;
+  /* Ensure bubble is not too narrow (like just "p") to show reply decent content */
+}
+
+/* === MOBILE OPTIMIZATION FOR REPLY BUBBLE === */
+@media (max-width: 768px) {
+  .message-bubble.has-reply-bubble {
+    padding-top: 48px;
+    /* Smaller space for mobile reply */
+    min-width: 50vw;
+    /* Ensure decent width on mobile for replies */
+  }
+
+  .reply-quote {
+    padding: 5px 8px 5px 12px;
+    /* More compact padding for mobile: top/bottom 5px, left 12px (for accent bar), right 8px */
+
+    /* Reset margins again just in case */
+    margin: 0;
+
+    /* Mobile inset adjustments */
+    top: 5px;
+    left: 5px;
+    right: 5px;
+  }
+
+  .reply-quote::before {
+    width: 3px;
+    /* Thinner accent bar for mobile */
+  }
+
+  .reply-quote-sender {
+    font-size: 0.65rem;
+    /* Smaller for mobile to fit more text */
+    margin-bottom: 2px;
+    letter-spacing: 0.1px;
+    line-height: 1.2;
+    /* Removed max-width restriction to keep bubble wide */
+  }
+
+  .reply-quote-text {
+    font-size: 0.72rem;
+    /* Smaller but still readable */
+    line-height: 1.25;
+    /* Removed max-width restriction to keep bubble wide */
+  }
+
+  .message.sent .reply-quote {
+    /* No margins needed for absolute positioning */
+    margin: 0;
+  }
+}
+
 
 .reply-preview {
   display: flex;
@@ -2434,12 +2552,12 @@
 
   /* Mobile Message List padding for Bottom Nav & Send Form*/
   .message-list {
-    padding-bottom: 45px;
+    padding-bottom: 55px;
     transition: padding-bottom 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
 
   .message-list.input-active {
-    padding-bottom: 345px !important;
+    padding-bottom: 355px !important;
   }
 
   /* Adjust Send Form Wrapper for mobile - Container for Form + Picker */
@@ -2787,6 +2905,34 @@
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* Highlight Animation for Reply Navigation */
+@keyframes highlight-pulse {
+  0% {
+    background-color: rgba(var(--primary-rgb), 0.3);
+    transform: scale(1.02);
+  }
+
+  50% {
+    background-color: rgba(var(--primary-rgb), 0.1);
+    transform: scale(1);
+  }
+
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+.highlight-message .message-bubble {
+  animation: highlight-pulse 2s ease-out;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+/* Ensure transition works */
+.message-bubble {
+  transition: background-color 0.3s, transform 0.3s;
 }
 
 .mobile-search-content.create-group-content {
@@ -3191,4 +3337,50 @@
 .cancel-reply-btn svg {
   width: 16px;
   height: 16px;
+}
+
+/* Time-based Margins */
+.message.mt-1 {
+  margin-top: 2px !important;
+}
+
+.message.mt-4 {
+  margin-top: 6px !important;
+}
+
+/* Mobile Menu Preview */
+.mobile-menu-preview {
+  background: #2a2a2a;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-left: 4px solid var(--primary-color);
+  max-width: 100%;
+}
+
+.mobile-preview-sender {
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  font-weight: 700;
+  margin: 0;
+  text-align: left;
+}
+
+.mobile-preview-snippet {
+  font-size: 0.9rem;
+  color: #e0e0e0;
+  line-height: 1.4;
+  text-align: left;
+  /* Multiline Clamp Logic */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }

@@ -1,0 +1,341 @@
+/* MobileSettings.css */
+
+/* Base Layout */
+.mobile-settings-container {
+    background-color: #000000;
+    height: 100vh;
+    width: 100vw;
+    padding-bottom: 40px;
+    /* Space for bottom nav */
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+}
+
+/* Header */
+.settings-header {
+    padding: 20px 20px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.settings-header h1 {
+    font-size: 34px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.3px;
+}
+
+/* Profile Section */
+.profile-section {
+    display: flex;
+    align-items: center;
+    background-color: #1c1c1e;
+    margin: 0 16px 30px;
+    padding: 16px;
+    border-radius: 12px;
+    position: relative;
+}
+
+.profile-avatar {
+    margin-right: 15px;
+    position: relative;
+    z-index: 1;
+}
+
+/* Force constrain Avatar component */
+.profile-avatar .avatar-container {
+    overflow: hidden;
+    border-radius: 50%;
+    background-color: #2c2c2e;
+}
+
+.profile-avatar img,
+.profile-avatar .avatar-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    display: block;
+}
+
+.profile-info {
+    flex: 1;
+    z-index: 2;
+}
+
+.profile-name {
+    font-size: 19px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.profile-email {
+    font-size: 14px;
+    color: #8e8e93;
+    margin: 4px 0 0;
+}
+
+.profile-edit-btn {
+    color: #0a84ff;
+    font-size: 16px;
+    font-weight: 400;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Grouped Lists (Preferences, etc) */
+.settings-group {
+    margin: 0 16px 30px;
+    background-color: #1c1c1e;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.group-title {
+    margin: 0 16px 8px;
+    font-size: 13px;
+    color: #8e8e93;
+    text-transform: uppercase;
+    font-weight: 400;
+    letter-spacing: -0.1px;
+}
+
+.settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background-color: #1c1c1e;
+    border-bottom: 0.5px solid #2c2c2e;
+    cursor: pointer;
+    min-height: 44px;
+}
+
+.item-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.setting-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    color: white;
+}
+
+.item-label {
+    font-size: 17px;
+    font-weight: 400;
+    color: #ffffff;
+}
+
+.item-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #8e8e93;
+    font-size: 17px;
+}
+
+/* Toggles & Controls */
+.ios-switch {
+    position: relative;
+    display: inline-block;
+    width: 51px;
+    height: 31px;
+}
+
+.ios-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #39393d;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 27px;
+    width: 27px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+input:checked+.slider {
+    background-color: #30d158;
+}
+
+input:checked+.slider:before {
+    transform: translateX(20px);
+}
+
+/* Theme Segmented Control */
+.theme-control {
+    background-color: #000;
+    /* Darker bg inside group */
+    padding: 2px;
+    border-radius: 8px;
+    display: flex;
+    width: 120px;
+}
+
+.theme-option {
+    flex: 1;
+    text-align: center;
+    padding: 6px 0;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.theme-option.active {
+    background-color: #636366;
+    color: white;
+    font-weight: 500;
+}
+
+.theme-option:not(.active) {
+    color: #8e8e93;
+}
+
+
+
+
+/* Sub-Page Styles */
+.sub-page {
+    animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.sub-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+}
+
+.sub-header h1 {
+    font-size: 24px;
+    letter-spacing: 0.3px;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: #007AFF;
+    padding: 8px;
+    margin-left: -8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Full Width Controls */
+.full-width {
+    width: 100%;
+}
+
+.column-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+/* Zoom Slider */
+.zoom-slider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #3a3a3c;
+    border-radius: 2px;
+    outline: none;
+    margin: 10px 0;
+}
+
+.zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #007AFF;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.zoom-labels {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    color: #8e8e93;
+    font-size: 12px;
+    padding: 0 2px;
+}
+
+/* iOS Select */
+.ios-select {
+    width: 100%;
+    background-color: #2c2c2e;
+    color: #ffffff;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 16px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+}
+
+/* Danger Zone */
+.danger-zone .item-label,
+.danger-zone .item-value {
+    color: #ff3b30;
+}
+
+.chevron-right {
+    color: #5d5d61;
+}

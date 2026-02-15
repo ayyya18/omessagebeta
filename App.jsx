@@ -26,6 +26,7 @@ const ChatHome = lazy(() => import("./pages/ChatHome"));
 const CalendarHome = lazy(() => import("./pages/CalendarHome"));
 const DashboardHome = lazy(() => import("./pages/DashboardHome"));
 const WorkspaceHome = lazy(() => import("./pages/Workspace/WorkspaceHome"));
+const MobileSettings = lazy(() => import("./pages/MobileSettings"));
 
 import usePresence from "./hooks/usePresence";
 
@@ -135,6 +136,14 @@ function App() {
                                           element={
                                             <ProtectedRoute>
                                               <WorkspaceHome />
+                                            </ProtectedRoute>
+                                          }
+                                        />
+                                        <Route
+                                          path="/settings"
+                                          element={
+                                            <ProtectedRoute>
+                                              <MobileSettings />
                                             </ProtectedRoute>
                                           }
                                         />
